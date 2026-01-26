@@ -1,1 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Audio Clips</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      max-width: 600px;
+      margin: 40px auto;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    li {
+      cursor: pointer;
+      padding: 8px 0;
+      border-bottom: 1px solid #eee;
+    }
+
+    li:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Audio Clips</h1>
+
+  <audio id="player" controls style="width: 100%; margin-bottom: 20px;">
+    Your browser does not support the audio element.
+  </audio>
+
+  <ul>
+    <li onclick="playClip('audio/clip1.mp3')">clip1.mp3</li>
+    <li onclick="playClip('audio/clip2.mp3')">clip2.mp3</li>
+    <li onclick="playClip('audio/clip3.mp3')">clip3.mp3</li>
+  </ul>
+
+  <script>
+    const player = document.getElementById('player');
+
+    function playClip(src) {
+      player.src = src;
+      player.play();
+    }
+  </script>
+
+</body>
+</html>
 
