@@ -178,7 +178,7 @@
 <body>
   <div id="overlay">
     <h2>Audio Clips</h2>
-    <p id="overlay-warning">If your phone is on silent, audio will not play.<p>
+    <p id="overlay-warning">If your phone is on silent, audio will not play.</p>
     <p id="overlay-warning">Please turn on <i>do not disturb,</i> switch your ringer on, <br>and turn your volume all the way up before continuing.</p>
     <button id="overlay-btn">Tap to load sounds</button>
     <span id="overlay-status"></span>
@@ -205,11 +205,6 @@
     <ul id="clip-list"></ul>
   </div>
 
-  <!-- Silent keepalive — holds iOS audio session open through screen lock and app switch -->
-  <audio id="keepalive" loop playsinline style="display:none">
-    <source src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=" type="audio/wav">
-  </audio>
-
   <script>
     const clips = [
       { label: '1', file: 'audio/1.mp3' },
@@ -222,7 +217,7 @@
       { label: '8', file: 'audio/8.mp3' },
     ];
 
-    const FADE_IN  = 0.07;
+    const FADE_IN  = 0.04;
     const FADE_OUT = 0.04;
     const MIN_GAIN = 0.0001;
 
@@ -322,27 +317,6 @@
       overlay.style.display = 'none';
       btnPlayPause.disabled = false;
 
-      // Start the silent keepalive loop — this holds the iOS audio session open
-      // so the OS treats the page like an active media app, allowing audio to
-      // continue playing through screen lock and app switching.
-      const keepalive = document.getElementById('keepalive');
-      keepalive.play().catch(() => {});
-
-      // Auto-resume if iOS suspends the context anyway (e.g. phone call)
-      ctx.addEventListener('statechange', () => {
-        if (ctx.state === 'suspended' || ctx.state === 'interrupted') {
-          ctx.resume();
-        }
-      });
-
-      // When returning to the page, make sure both the context and keepalive
-      // are running in case the OS paused them while in the background.
-      document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') {
-          ctx.resume();
-          keepalive.play().catch(() => {});
-        }
-      });
     });
 
     // ── Stop active source with gain fade ─────────────────────────────────────
