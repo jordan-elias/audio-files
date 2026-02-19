@@ -113,15 +113,35 @@
   </div>
 
   <script>
-    const player = document.getElementById('player');
+  const player = document.getElementById('player');
 
-    function playClip(src) {
-      if (player.src !== src) {
-        player.src = src;
-      }
-      player.play();
-    }
-  </script>
+  // --- WebAudio soft envelope ---
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  const ctx = new AudioCtx();
+
+  const source = ctx.createMediaElementSource(player);
+  const gainNode = ctx.createGain();
+
+  source.connect(gainNode);
+  gainNode.connect(ctx.destination);
+
+  function playClip(src) {
+    // Resume context (mobile requirement)
+    ctx.resume();
+
+    // Cancel any scheduled ramps
+    gainNode.gain.cancelScheduledValues(ctx.currentTime);
+
+    // Soft start envelope
+    gainNode.gain.setValueAtTime(0, ctx.currentTime);
+    gainNode.gain.linearRampToValueAtTime(1, ctx.currentTime + 0.03); // 30ms fade-in
+
+    // Load + play
+    player.src = src;
+    player.play();
+  }
+</script>
+
 
 </body>
 </html>
