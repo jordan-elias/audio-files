@@ -32,7 +32,6 @@
       text-align: center;
     }
 
-    /* Custom transport controls */
     .controls {
       display: flex;
       align-items: center;
@@ -40,19 +39,28 @@
     }
 
     .btn {
-      border: none;
-      border-radius: 6px;
-      padding: 8px 14px;
+      border: 1px solid #111;
+      border-radius: 0;
+      padding: 0;
       font-size: 0.95rem;
       cursor: pointer;
-      background: #eee;
-      color: #111;
-      transition: background 0.15s;
+      background: #111;
+      color: white;
       flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 36px;
+      transform: none !important;
+      transition: background 0.1s, color 0.1s;
+      -webkit-tap-highlight-color: transparent;
     }
-    .btn:active { background: #ddd; }
-    .btn.primary { background: #111; color: white; }
-    .btn.primary:active { background: #333; }
+    .btn:active, .btn.pressed {
+      background: white;
+      color: #111;
+    }
+    .btn:disabled { opacity: 0.35; cursor: default; }
 
     .now-playing {
       flex: 1;
@@ -64,20 +72,16 @@
       text-align: center;
     }
 
-    /* Progress bar */
     .progress-wrap {
       margin-top: 8px;
       height: 4px;
-      background: #eee;
-      border-radius: 2px;
+      background: transparent;
       overflow: hidden;
     }
     .progress-bar {
       height: 100%;
       width: 0%;
       background: #111;
-      border-radius: 2px;
-      transition: width 0.25s linear;
     }
 
     .list-container {
@@ -85,6 +89,13 @@
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
       padding: 10px 14px 24px;
+    }
+
+    .loading-indicator {
+      text-align: center;
+      padding: 10px;
+      font-size: 0.85rem;
+      color: #aaa;
     }
 
     ul {
@@ -97,23 +108,22 @@
       padding: 14px 12px;
       margin-bottom: 8px;
       background: white;
-      border-radius: 8px;
+      border-radius: 0;
       border: 1px solid #eee;
       cursor: pointer;
-      transition: background 0.15s ease, transform 0.05s ease;
+      transition: background 0.15s ease;
       font-size: 1rem;
       text-align: center;
       user-select: none;
+      position: relative;
+      -webkit-tap-highlight-color: transparent;
     }
-    li:active { transform: scale(0.98); background: #f0f0f0; }
+    li:active { background: #f0f0f0; }
     li:hover { background: #f7f7f7; }
-    li.active { border-color: #111; background: #f7f7f7; }
-
-    .loading-indicator {
-      text-align: center;
-      padding: 10px;
+    li.active { border-color: #111; font-weight: 600; }
+    li.loading::after {
+      content: ' ⏳';
       font-size: 0.8rem;
-      color: #888;
     }
 
     @media (min-width: 700px) {
@@ -130,9 +140,15 @@
   <div class="header">
     <h1>Audio Clips</h1>
     <div class="controls">
-      <button class="btn primary" id="btn-play-pause" disabled>▶</button>
-      <button class="btn" id="btn-stop" disabled>■</button>
-      <span class="now-playing" id="now-playing">Nothing selected</span>
+      <button class="btn" id="btn-play-pause" disabled aria-label="Play / Pause">
+        <!-- Play icon shown by default; JS swaps to pause SVG -->
+        <svg id="icon-play" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
+        <svg id="icon-pause" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+      </button>
+      <button class="btn" id="btn-stop" disabled aria-label="Stop">
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16"/></svg>
+      </button>
+      <span class="now-playing" id="now-playing"></span>
     </div>
     <div class="progress-wrap">
       <div class="progress-bar" id="progress-bar"></div>
@@ -145,7 +161,7 @@
   </div>
 
   <script>
-    // ── Config ─────────────────────────────────────────────────────────────────
+    // ── Config ──────────────────────────────────────────────────────────────
     const clips = [
       { label: '1', file: 'audio/00 - audio - 1.mp3' },
       { label: '2', file: 'audio/00 - audio - 2.mp3' },
@@ -157,32 +173,36 @@
       { label: '8', file: 'audio/00 - audio - 8.mp3' },
     ];
 
-    const FADE_IN  = 0.06;   // seconds
-    const FADE_OUT = 0.08;   // seconds
-    const MIN_GAIN = 0.0001; // -80dB, effectively silent
+    const FADE_IN  = 0.06;
+    const FADE_OUT = 0.08;
+    const MIN_GAIN = 0.0001;
 
-    // ── Web Audio setup ────────────────────────────────────────────────────────
-    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    let ctx; // created on first user gesture (iOS requirement)
-
-    const buffers = {}; // file -> decoded AudioBuffer
+    // ── State ───────────────────────────────────────────────────────────────
+    let ctx          = null;
     let activeSource = null;
     let activeGain   = null;
-    let activeMeta   = null; // { file, startedAt, offset, duration }
+    let activeMeta   = null; // { file, label, startedAt, duration }
     let isPaused     = false;
+    let pauseOffset  = 0;
     let stopTimer    = null;
+    let progressRaf  = null;
 
-    // ── UI refs ────────────────────────────────────────────────────────────────
-    const btnPlayPause  = document.getElementById('btn-play-pause');
-    const btnStop       = document.getElementById('btn-stop');
-    const nowPlaying    = document.getElementById('now-playing');
-    const progressBar   = document.getElementById('progress-bar');
-    const loadingMsg    = document.getElementById('loading-msg');
-    const clipList      = document.getElementById('clip-list');
+    const buffers = {}; // file -> AudioBuffer, populated on demand
 
-    let progressInterval = null;
+    // ── Icon helpers ──────────────────────────────────────────────────────────
+    const iconPlay  = document.getElementById('icon-play');
+    const iconPause = document.getElementById('icon-pause');
 
-    // ── Build list items ───────────────────────────────────────────────────────
+    function showPlayIcon()  { iconPlay.style.display = ''; iconPause.style.display = 'none'; }
+    function showPauseIcon() { iconPlay.style.display = 'none'; iconPause.style.display = ''; }
+    const btnPlayPause = document.getElementById('btn-play-pause');
+    const btnStop      = document.getElementById('btn-stop');
+    const nowPlaying   = document.getElementById('now-playing');
+    const progressBar  = document.getElementById('progress-bar');
+    const loadingMsg   = document.getElementById('loading-msg');
+    const clipList     = document.getElementById('clip-list');
+
+    // ── Build list ──────────────────────────────────────────────────────────
     clips.forEach(({ label, file }) => {
       const li = document.createElement('li');
       li.textContent = label;
@@ -191,212 +211,245 @@
       clipList.appendChild(li);
     });
 
-    // ── Preload all clips ──────────────────────────────────────────────────────
-    // We do this after a tiny delay so the page renders first
-    async function preloadAll() {
-      // AudioContext must exist to decode — create it now (no user gesture needed
-      // just for decoding, only for playback)
-      ctx = new AudioCtx();
-
-      let loaded = 0;
-      await Promise.all(clips.map(async ({ file, label }) => {
-        try {
-          const res = await fetch(file);
-          const arrayBuf = await res.arrayBuffer();
-          buffers[file] = await ctx.decodeAudioData(arrayBuf);
-          loaded++;
-          loadingMsg.textContent = `Loading… ${loaded}/${clips.length}`;
-        } catch (e) {
-          console.warn('Failed to load:', file, e);
-        }
-      }));
-
-      loadingMsg.textContent = '';
-      loadingMsg.style.display = 'none';
-      btnPlayPause.disabled = false;
-    }
-
-    // ── Core playback ──────────────────────────────────────────────────────────
-    function createNodes() {
-      const gain = ctx.createGain();
-      gain.gain.setValueAtTime(MIN_GAIN, ctx.currentTime);
-      gain.connect(ctx.destination);
-      return gain;
-    }
-
-    function startPlayback(file, offset = 0) {
-      const buffer = buffers[file];
-      if (!buffer) return;
-
-      const gain = createNodes();
-      const src  = ctx.createBufferSource();
-      src.buffer = buffer;
-      src.connect(gain);
-
-      const now = ctx.currentTime;
-
-      // Fade in
-      gain.gain.cancelScheduledValues(now);
-      gain.gain.setValueAtTime(MIN_GAIN, now);
-      gain.gain.exponentialRampToValueAtTime(1, now + FADE_IN);
-
-      // Schedule fade out before natural end
-      const remaining = buffer.duration - offset;
-      const fadeOutAt = now + remaining - FADE_OUT;
-      if (fadeOutAt > now) {
-        gain.gain.setValueAtTime(1, fadeOutAt);
-        gain.gain.exponentialRampToValueAtTime(MIN_GAIN, now + remaining);
+    // ── AudioContext — created on first user gesture ─────────────────────────
+    // iOS requires this to happen synchronously inside a user event handler.
+    function ensureContext() {
+      if (!ctx) {
+        ctx = new (window.AudioContext || window.webkitAudioContext)();
       }
-
-      src.start(now, offset);
-
-      // Clean up after clip ends
-      src.onended = () => {
-        if (activeSource === src) {
-          activeSource = null;
-          activeGain   = null;
-          activeMeta   = null;
-          isPaused     = false;
-          updateUI(null, null);
-          stopProgresstracker();
-        }
-      };
-
-      activeSource = src;
-      activeGain   = gain;
-      activeMeta   = {
-        file,
-        startedAt: now - offset, // ctx time when offset=0 would have started
-        offset,
-        duration: buffer.duration
-      };
-      isPaused = false;
+      // iOS suspends the context aggressively; always resume.
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
+      return ctx;
     }
 
-    function stopPlayback(then) {
+    // ── Fetch + decode a single clip ─────────────────────────────────────────
+    // Returns a Promise<AudioBuffer>. Results are cached.
+    async function getBuffer(file) {
+      if (buffers[file]) return buffers[file];
+      const res = await fetch(file);
+      const arrayBuf = await res.arrayBuffer();
+      // decodeAudioData must happen after context exists (post-gesture)
+      const audioBuf = await ctx.decodeAudioData(arrayBuf);
+      buffers[file] = audioBuf;
+      return audioBuf;
+    }
+
+    // ── Preload in background after first gesture unlocks context ───────────
+    // We wait for the first tap to create the context, then background-load
+    // all remaining clips so subsequent taps are instant.
+    let preloadStarted = false;
+    function backgroundPreload(skipFile) {
+      if (preloadStarted) return;
+      preloadStarted = true;
+      let loaded = 0;
+      const total = clips.length;
+      clips.forEach(({ file }) => {
+        if (file === skipFile) { loaded++; return; } // already loading/loaded
+        getBuffer(file).then(() => {
+          loaded++;
+          if (loaded < total) {
+            loadingMsg.textContent = `Preloading… ${loaded}/${total}`;
+            loadingMsg.style.display = '';
+          } else {
+            loadingMsg.style.display = 'none';
+          }
+        }).catch(e => console.warn('Preload failed:', file, e));
+      });
+    }
+
+    // ── Stop current playback with fade ─────────────────────────────────────
+    function stopCurrent(then) {
       if (stopTimer) { clearTimeout(stopTimer); stopTimer = null; }
-      if (!activeSource) { then && then(); return; }
+
+      if (!activeSource) {
+        then && then();
+        return;
+      }
 
       const gain = activeGain;
       const src  = activeSource;
-      const now  = ctx.currentTime;
+      activeSource = null;
+      activeGain   = null;
 
-      // Clear any previously scheduled ramps so they don't fight us
+      const now = ctx.currentTime;
       gain.gain.cancelScheduledValues(now);
       gain.gain.setValueAtTime(Math.max(gain.gain.value, MIN_GAIN), now);
       gain.gain.exponentialRampToValueAtTime(MIN_GAIN, now + FADE_OUT);
-
-      activeSource = null;
-      activeGain   = null;
 
       stopTimer = setTimeout(() => {
         try { src.stop(); } catch(e) {}
         src.disconnect();
         gain.disconnect();
         then && then();
-      }, FADE_OUT * 1000 + 30);
+      }, FADE_OUT * 1000 + 40);
     }
 
-    // ── User interactions ──────────────────────────────────────────────────────
-    function onClipTap(file, label, li) {
-      // iOS: AudioContext must be resumed from a user gesture
-      if (!ctx) ctx = new AudioCtx();
-      ctx.resume();
+    // ── Start playback from an offset ────────────────────────────────────────
+    function startFrom(file, label, buffer, offset) {
+      const now      = ctx.currentTime;
+      const duration = buffer.duration;
+      const remaining = duration - offset;
+      if (remaining <= 0) return;
 
-      // Highlight active item
-      document.querySelectorAll('#clip-list li').forEach(el => el.classList.remove('active'));
-      li.classList.add('active');
-      updateUI(label, file);
-      btnStop.disabled = false;
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(MIN_GAIN, now);
+      gain.gain.exponentialRampToValueAtTime(1, now + FADE_IN);
 
-      const isSameClip = activeMeta && activeMeta.file === file;
-
-      if (isSameClip && !isPaused) {
-        // Restart from beginning
-        stopPlayback(() => {
-          startPlayback(file);
-          startProgressTracker();
-        });
-      } else if (isSameClip && isPaused) {
-        // Resume
-        resumePlayback();
-      } else {
-        // New clip
-        stopPlayback(() => {
-          startPlayback(file);
-          startProgressTracker();
-        });
+      // Pre-schedule fade out at natural end
+      const fadeOutStart = now + remaining - FADE_OUT;
+      if (fadeOutStart > now + FADE_IN) {
+        gain.gain.setValueAtTime(1, fadeOutStart);
+        gain.gain.exponentialRampToValueAtTime(MIN_GAIN, now + remaining);
       }
+
+      gain.connect(ctx.destination);
+
+      const src = ctx.createBufferSource();
+      src.buffer = buffer;
+      src.connect(gain);
+      src.start(now, offset);
+
+      src.onended = () => {
+        if (activeSource === src) {
+          activeSource = null;
+          activeGain   = null;
+          activeMeta   = null;
+          isPaused     = false;
+          pauseOffset  = 0;
+          stopProgress();
+          setUI(null, null);
+          btnStop.disabled = true;
+          showPlayIcon();
+          document.querySelectorAll('#clip-list li').forEach(el => el.classList.remove('active'));
+        }
+      };
+
+      activeSource = src;
+      activeGain   = gain;
+      activeMeta   = { file, label, startedAt: now - offset, duration };
+      isPaused     = false;
+
+      startProgress();
+      setUI(label, file);
+      showPauseIcon();
+      btnStop.disabled = false;
+      btnPlayPause.disabled = false;
     }
 
-    function resumePlayback() {
-      if (!activeMeta || !isPaused) return;
-      const offset = activeMeta.offset;
-      startPlayback(activeMeta.file, offset);
-      startProgressTracker();
-      btnPlayPause.textContent = '⏸';
+    // ── Clip tap handler ─────────────────────────────────────────────────────
+    async function onClipTap(file, label, li) {
+      // 1. Create / resume AudioContext synchronously inside the gesture
+      ensureContext();
+
+      // 2. Visual feedback immediately
+      document.querySelectorAll('#clip-list li').forEach(el => el.classList.remove('active', 'loading'));
+      li.classList.add('loading');
+
+      // 3. Fetch + decode (instant if cached)
+      let buffer;
+      try {
+        buffer = await getBuffer(file);
+      } catch(e) {
+        console.error('Failed to load clip:', file, e);
+        li.classList.remove('loading');
+        nowPlaying.textContent = 'Error loading clip';
+        return;
+      }
+
+      // 4. After await, re-ensure context is still running
+      //    (iOS can suspend again across await boundaries)
+      ensureContext();
+
+      li.classList.remove('loading');
+      li.classList.add('active');
+
+      // 5. Stop whatever is playing, then start new clip
+      stopCurrent(() => {
+        startFrom(file, label, buffer, 0);
+        // Now that context is definitely unlocked, preload the rest
+        backgroundPreload(file);
+      });
     }
 
+    // ── Play/Pause button ────────────────────────────────────────────────────
     btnPlayPause.addEventListener('click', () => {
       if (!ctx) return;
-      ctx.resume();
+      ensureContext();
 
-      if (!activeMeta && !isPaused) return;
-
-      if (!isPaused && activeSource) {
-        // Pause — store current offset
-        const elapsed = ctx.currentTime - activeMeta.startedAt;
-        activeMeta.offset = Math.min(elapsed, activeMeta.duration);
+      if (activeSource && !isPaused) {
+        // Pause: capture current position BEFORE stopCurrent clears activeSource
+        const savedMeta = activeMeta;
+        const offset = ctx.currentTime - activeMeta.startedAt;
+        pauseOffset = Math.min(offset, activeMeta.duration);
         isPaused = true;
-        stopProgressTracker();
-        stopPlayback();
-        btnPlayPause.textContent = '▶';
+        stopProgress();
+        stopCurrent(() => {
+          // Restore meta after stopCurrent — it nulls activeSource/activeGain
+          // but we must keep activeMeta so resume works
+          activeMeta = savedMeta;
+          isPaused   = true;
+        });
+        showPlayIcon();
+
       } else if (isPaused && activeMeta) {
-        resumePlayback();
-        btnPlayPause.textContent = '⏸';
+        // Resume from saved offset
+        const savedMeta   = activeMeta;
+        const savedOffset = pauseOffset;
+        getBuffer(savedMeta.file).then(buffer => {
+          ensureContext();
+          // Still paused? (user might have tapped stop while awaiting)
+          if (!isPaused) return;
+          startFrom(savedMeta.file, savedMeta.label, buffer, savedOffset);
+        });
       }
     });
 
+    // ── Stop button ──────────────────────────────────────────────────────────
     btnStop.addEventListener('click', () => {
-      ctx && ctx.resume();
-      stopPlayback();
-      stopProgressTracker();
-      isPaused = false;
-      activeMeta = null;
+      if (!ctx) return;
+      ensureContext();
+      stopCurrent();
+      stopProgress();
+      activeMeta  = null;
+      isPaused    = false;
+      pauseOffset = 0;
       document.querySelectorAll('#clip-list li').forEach(el => el.classList.remove('active'));
-      updateUI(null, null);
+      setUI(null, null);
       btnStop.disabled = true;
-      btnPlayPause.textContent = '▶';
+      showPlayIcon();
     });
 
-    // ── Progress bar ───────────────────────────────────────────────────────────
-    function startProgressTracker() {
-      stopProgressTracker();
-      progressInterval = setInterval(() => {
+    // ── Progress bar ─────────────────────────────────────────────────────────
+    function startProgress() {
+      stopProgress();
+      function tick() {
         if (!activeMeta || !activeSource) return;
         const elapsed  = ctx.currentTime - activeMeta.startedAt;
-        const progress = Math.min(elapsed / activeMeta.duration, 1) * 100;
-        progressBar.style.width = progress + '%';
-        btnPlayPause.textContent = '⏸';
-      }, 100);
+        const pct      = Math.min(elapsed / activeMeta.duration, 1) * 100;
+        progressBar.style.width = pct + '%';
+        progressRaf = requestAnimationFrame(tick);
+      }
+      progressRaf = requestAnimationFrame(tick);
     }
 
-    function stopProgressTracker() {
-      if (progressInterval) { clearInterval(progressInterval); progressInterval = null; }
+    function stopProgress() {
+      if (progressRaf) { cancelAnimationFrame(progressRaf); progressRaf = null; }
       progressBar.style.width = '0%';
     }
 
-    // ── UI helpers ─────────────────────────────────────────────────────────────
-    function updateUI(label, file) {
-      nowPlaying.textContent = label ? `Playing: ${label}` : 'Nothing selected';
-      if (!label) {
-        progressBar.style.width = '0%';
-        btnPlayPause.textContent = '▶';
-      }
+    // ── UI helpers ────────────────────────────────────────────────────────────
+    function setUI(label, file) {
+      nowPlaying.textContent = label ? `Playing: ${label}` : '';
     }
 
-    // ── Kick off preload ───────────────────────────────────────────────────────
-    preloadAll();
+    // ── Initial page load: show ready state ──────────────────────────────────
+    // We can't preload until after a user gesture on iOS, so just hide the
+    // loading message and wait for first tap.
+    loadingMsg.style.display = 'none';
+    btnPlayPause.disabled = false;
+    showPlayIcon();
   </script>
 </body>
 </html>
