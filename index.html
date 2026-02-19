@@ -123,64 +123,77 @@
   source.connect(gainNode);
   gainNode.connect(ctx.destination);
 
-  const FADE_IN  = 0.06;  // seconds
-  const FADE_OUT = 0.09;  // seconds
+  gainNode.gain.setValueAtTime(1, ctx.currentTime);
 
-  // Fade out, then execute callback once fade is done
-  function fadeOutThen(callback) {
-    const now = ctx.currentTime;
-    gainNode.gain.cancelScheduledValues(now);
-    gainNode.gain.setValueAtTime(gainNode.gain.value, now);
-    gainNode.gain.linearRampToValueAtTime(0, now + FADE_OUT);
-    setTimeout(callback, FADE_OUT * 1000);
+  const FADE_IN  = 0.08;   // seconds — longer gives iOS more time to respond
+  const FADE_OUT = 0.1;
+  const MIN_GAIN = 0.0001; // exponential ramps can't go to exactly 0
+
+  let fadeOutTimer = null;
+  let pendingSrc = null;
+
+  function cancelPending() {
+    if (fadeOutTimer) { clearTimeout(fadeOutTimer); fadeOutTimer = null; }
+    pendingSrc = null;
   }
 
   function fadeIn() {
     const now = ctx.currentTime;
     gainNode.gain.cancelScheduledValues(now);
-    gainNode.gain.setValueAtTime(0, now);
-    gainNode.gain.linearRampToValueAtTime(1, now + FADE_IN);
+    gainNode.gain.setValueAtTime(MIN_GAIN, now);
+    gainNode.gain.exponentialRampToValueAtTime(1, now + FADE_IN);
   }
 
-  // Fade out at natural end of clip
+  function fadeOutThen(callback) {
+    const now = ctx.currentTime;
+    gainNode.gain.cancelScheduledValues(now);
+    gainNode.gain.setValueAtTime(Math.max(gainNode.gain.value, MIN_GAIN), now);
+    gainNode.gain.exponentialRampToValueAtTime(MIN_GAIN, now + FADE_OUT);
+    // Wait for fade to fully complete before acting
+    fadeOutTimer = setTimeout(callback, (FADE_OUT * 1000) + 50); // +50ms buffer for iOS lag
+  }
+
+  // Fade out near end of clip using timeupdate
+  // Schedule it early enough that even slow iOS timeupdate firing catches it
   player.addEventListener('timeupdate', () => {
     if (!player.duration) return;
     const remaining = player.duration - player.currentTime;
-    if (remaining < FADE_OUT && remaining > 0) {
+    if (remaining > 0 && remaining <= FADE_OUT + 0.15) {
       const now = ctx.currentTime;
       gainNode.gain.cancelScheduledValues(now);
-      gainNode.gain.setValueAtTime(gainNode.gain.value, now);
-      gainNode.gain.linearRampToValueAtTime(0, now + remaining);
+      gainNode.gain.setValueAtTime(Math.max(gainNode.gain.value, MIN_GAIN), now);
+      gainNode.gain.exponentialRampToValueAtTime(MIN_GAIN, now + remaining);
     }
   });
 
+  // Ensure gain is silent when a clip ends naturally, before any new play
+  player.addEventListener('ended', () => {
+    gainNode.gain.cancelScheduledValues(ctx.currentTime);
+    gainNode.gain.setValueAtTime(MIN_GAIN, ctx.currentTime);
+  });
+
   function playClip(src) {
+    cancelPending();
     ctx.resume();
 
-    if (!player.paused && player.src && player.src.endsWith(src)) {
-      // Same clip — just restart with a fade
-      fadeOutThen(() => {
-        player.currentTime = 0;
-        fadeIn();
-        player.play();
-      });
-      return;
-    }
-
-    if (!player.paused) {
-      // Different clip playing — fade out first, then switch
-      fadeOutThen(() => {
-        player.src = src;
-        player.load();
-        player.play();
-        fadeIn();
-      });
-    } else {
-      // Nothing playing — load and fade in
+    if (player.paused || player.ended) {
+      // Nothing playing — just load and fade in
       player.src = src;
       player.load();
-      player.play();
       fadeIn();
+      player.play().catch(() => {});
+    } else {
+      // Something is playing — fade out first, then switch
+      pendingSrc = src;
+      fadeOutThen(() => {
+        if (!pendingSrc) return; // cancelled by another tap
+        const nextSrc = pendingSrc;
+        pendingSrc = null;
+        player.src = nextSrc;
+        player.load();
+        fadeIn();
+        player.play().catch(() => {});
+      });
     }
   }
 </script>
