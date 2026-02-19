@@ -114,74 +114,99 @@
 
   
 <script>
-  const player = document.getElementById('player');
-
   const AudioCtx = window.AudioContext || window.webkitAudioContext;
   const ctx = new AudioCtx();
-  const source = ctx.createMediaElementSource(player);
-  const gainNode = ctx.createGain();
-  source.connect(gainNode);
-  gainNode.connect(ctx.destination);
 
-  const FADE_IN  = 0.03;  // seconds
-  const FADE_OUT = 0.05;  // seconds
+  const FADE_IN  = 0.04;
+  const FADE_OUT = 0.06;
 
-  // Fade out, then execute callback once fade is done
-  function fadeOutThen(callback) {
-    const now = ctx.currentTime;
-    gainNode.gain.cancelScheduledValues(now);
-    gainNode.gain.setValueAtTime(gainNode.gain.value, now);
-    gainNode.gain.linearRampToValueAtTime(0, now + FADE_OUT);
-    setTimeout(callback, FADE_OUT * 1000);
+  const cache = {};          // decoded AudioBuffer cache
+  let activeSource = null;   // currently playing BufferSourceNode
+  let activeGain   = null;   // its gain node
+  let isStopping   = false;  // guard against double-stops
+
+  // Keep a reference to the visible <audio> element just for the UI controls
+  // We hijack its play/pause button via AudioContext instead of letting it drive playback
+  const playerUI = document.getElementById('player');
+  playerUI.style.display = 'none'; // hide it — we drive playback ourselves
+
+  // Show a minimal play/pause + time display instead, or leave hidden entirely.
+  // (Remove the line above if you still want the native controls visible — 
+  //  but note they won't control WebAudio buffer playback.)
+
+  async function fetchAndDecode(src) {
+    if (cache[src]) return cache[src];
+    const response = await fetch(src);
+    const arrayBuffer = await response.arrayBuffer();
+    const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+    cache[src] = audioBuffer;
+    return audioBuffer;
   }
 
-  function fadeIn() {
-    const now = ctx.currentTime;
-    gainNode.gain.cancelScheduledValues(now);
-    gainNode.gain.setValueAtTime(0, now);
-    gainNode.gain.linearRampToValueAtTime(1, now + FADE_IN);
-  }
-
-  // Fade out at natural end of clip
-  player.addEventListener('timeupdate', () => {
-    if (!player.duration) return;
-    const remaining = player.duration - player.currentTime;
-    if (remaining < FADE_OUT && remaining > 0) {
-      const now = ctx.currentTime;
-      gainNode.gain.cancelScheduledValues(now);
-      gainNode.gain.setValueAtTime(gainNode.gain.value, now);
-      gainNode.gain.linearRampToValueAtTime(0, now + remaining);
-    }
-  });
-
-  function playClip(src) {
-    ctx.resume();
-
-    if (!player.paused && player.src && player.src.endsWith(src)) {
-      // Same clip — just restart with a fade
-      fadeOutThen(() => {
-        player.currentTime = 0;
-        fadeIn();
-        player.play();
-      });
+  function stopCurrent(onStopped) {
+    if (!activeSource || isStopping) {
+      onStopped && onStopped();
       return;
     }
+    isStopping = true;
+    const gain = activeGain;
+    const src  = activeSource;
+    const now  = ctx.currentTime;
 
-    if (!player.paused) {
-      // Different clip playing — fade out first, then switch
-      fadeOutThen(() => {
-        player.src = src;
-        player.load();
-        player.play();
-        fadeIn();
-      });
-    } else {
-      // Nothing playing — load and fade in
-      player.src = src;
-      player.load();
-      player.play();
-      fadeIn();
-    }
+    gain.gain.cancelScheduledValues(now);
+    gain.gain.setValueAtTime(gain.gain.value, now);
+    gain.gain.linearRampToValueAtTime(0, now + FADE_OUT);
+
+    // Disconnect after fade — use setTimeout as a fallback since
+    // onended may not fire reliably mid-playback on iOS
+    setTimeout(() => {
+      try { src.stop(); } catch(e) {}
+      src.disconnect();
+      gain.disconnect();
+      isStopping = false;
+      onStopped && onStopped();
+    }, FADE_OUT * 1000 + 20); // small extra buffer for iOS scheduling lag
+  }
+
+  async function playClip(src) {
+    // iOS requires AudioContext resume from a user gesture
+    if (ctx.state === 'suspended') await ctx.resume();
+
+    // Pre-fetch in parallel while fade-out runs
+    const bufferPromise = fetchAndDecode(src);
+
+    stopCurrent(async () => {
+      const buffer = await bufferPromise;
+      const now = ctx.currentTime;
+
+      // Create a new source + gain for each clip (required for BufferSourceNode)
+      const gainNode = ctx.createGain();
+      gainNode.gain.setValueAtTime(0, now);
+      gainNode.gain.linearRampToValueAtTime(1, now + FADE_IN);
+      gainNode.connect(ctx.destination);
+
+      const sourceNode = ctx.createBufferSource();
+      sourceNode.buffer = buffer;
+      sourceNode.connect(gainNode);
+
+      // Fade out end-of-clip naturally
+      const clipEnd = now + buffer.duration;
+      gainNode.gain.setValueAtTime(1, clipEnd - FADE_OUT);
+      gainNode.gain.linearRampToValueAtTime(0, clipEnd);
+
+      sourceNode.start(now);
+      sourceNode.onended = () => {
+        sourceNode.disconnect();
+        gainNode.disconnect();
+        if (activeSource === sourceNode) {
+          activeSource = null;
+          activeGain   = null;
+        }
+      };
+
+      activeSource = sourceNode;
+      activeGain   = gainNode;
+    });
   }
 </script>
 
