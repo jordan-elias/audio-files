@@ -126,9 +126,55 @@
         border-right: 1px solid #eee;
       }
     }
-  </style>
+
+    /* ── Tap-to-load overlay ─────────────────────────────────────────────── */
+    #overlay {
+      position: fixed;
+      inset: 0;
+      background: #111;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    #overlay h2 {
+      color: white;
+      font-size: 1.1rem;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+    }
+    #overlay-btn {
+      background: white;
+      color: #111;
+      border: none;
+      border-radius: 0;
+      padding: 14px 32px;
+      font-size: 1rem;
+      font-family: inherit;
+      cursor: pointer;
+      letter-spacing: 0.03em;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    #overlay-status {
+      color: #888;
+      font-size: 0.8rem;
+      min-height: 1.2em;
+    }
+    </style>
 </head>
 <body>
+  <div id="overlay">
+    <h2>Audio Clips</h2>
+    <button id="overlay-btn">Tap to load sounds</button>
+    <span id="overlay-status"></span>
+  </div>
+
   <div class="header">
     <h1>Audio Clips</h1>
     <div class="controls">
@@ -150,9 +196,6 @@
     <ul id="clip-list"></ul>
   </div>
 
-  <!-- Hidden audio element — drives playback, invisible to user -->
-  <audio id="player" preload="auto" style="display:none"></audio>
-
   <script>
     const clips = [
       { label: '1', file: 'audio/00 - audio - 1.mp3' },
@@ -165,57 +208,48 @@
       { label: '8', file: 'audio/00 - audio - 8.mp3' },
     ];
 
-    const FADE_IN  = 0.04;  // seconds — short enough to feel instant
-    const FADE_OUT = 0.04;  // kept brief so switching feels snappy
+    const FADE_IN  = 0.04;
+    const FADE_OUT = 0.04;
     const MIN_GAIN = 0.0001;
 
-    // ── Web Audio for gain/fades only ─────────────────────────────────────────
-    const AudioCtx  = window.AudioContext || window.webkitAudioContext;
-    const ctx       = new AudioCtx();
-    const player    = document.getElementById('player');
-    const mediaNode = ctx.createMediaElementSource(player);
-    const gainNode  = ctx.createGain();
-    mediaNode.connect(gainNode);
-    gainNode.connect(ctx.destination);
-    gainNode.gain.setValueAtTime(1, ctx.currentTime);
+    // ── AudioContext ──────────────────────────────────────────────────────────
+    // Created immediately; iOS will keep it suspended until we play a real
+    // buffer inside the overlay tap (the warmup below).
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    const ctx      = new AudioCtx();
 
-    // ── Blob URL cache (populated on page load) ───────────────────────────────
-    const blobURLs = {};  // file -> blob: URL
+    // Master gain node — all clips route through this for fades
+    const masterGain = ctx.createGain();
+    masterGain.gain.setValueAtTime(1, ctx.currentTime);
+    masterGain.connect(ctx.destination);
 
-    // Fetch all clips in parallel immediately on page load and store as blob
-    // URLs so every subsequent tap is instant — no network round trip.
-    async function preloadAll() {
-      await Promise.all(clips.map(async ({ file }) => {
-        try {
-          const res  = await fetch(file);
-          const blob = await res.blob();
-          blobURLs[file] = URL.createObjectURL(blob);
-        } catch(e) {
-          console.warn('Preload failed:', file, e);
-          blobURLs[file] = file; // fall back to original path
-        }
-      }));
-    }
-    preloadAll();
+    // ── Decoded buffer cache ──────────────────────────────────────────────────
+    const buffers = {};  // file -> AudioBuffer
 
     // ── State ─────────────────────────────────────────────────────────────────
-    let currentFile = null;
-    let fadeTimer   = null;
-    let progressRaf = null;
+    let activeSource = null;   // currently playing BufferSourceNode
+    let activeMeta   = null;   // { file, label, startedAt, duration }
+    let isPaused     = false;
+    let pauseOffset  = 0;
+    let fadeTimer    = null;
+    let progressRaf  = null;
 
     // ── UI refs ───────────────────────────────────────────────────────────────
-    const btnPlayPause = document.getElementById('btn-play-pause');
-    const btnStop      = document.getElementById('btn-stop');
-    const nowPlaying   = document.getElementById('now-playing');
-    const progressBar  = document.getElementById('progress-bar');
-    const clipList     = document.getElementById('clip-list');
-    const iconPlay     = document.getElementById('icon-play');
-    const iconPause    = document.getElementById('icon-pause');
+    const overlay       = document.getElementById('overlay');
+    const overlayBtn    = document.getElementById('overlay-btn');
+    const overlayStatus = document.getElementById('overlay-status');
+    const btnPlayPause  = document.getElementById('btn-play-pause');
+    const btnStop       = document.getElementById('btn-stop');
+    const nowPlaying    = document.getElementById('now-playing');
+    const progressBar   = document.getElementById('progress-bar');
+    const clipList      = document.getElementById('clip-list');
+    const iconPlay      = document.getElementById('icon-play');
+    const iconPause     = document.getElementById('icon-pause');
 
     function showPlay()  { iconPlay.style.display = '';     iconPause.style.display = 'none'; }
     function showPause() { iconPlay.style.display = 'none'; iconPause.style.display = ''; }
 
-    // ── Build list ────────────────────────────────────────────────────────────
+    // ── Build clip list ───────────────────────────────────────────────────────
     clips.forEach(({ label, file }) => {
       const li = document.createElement('li');
       li.textContent = label;
@@ -224,105 +258,171 @@
       clipList.appendChild(li);
     });
 
-    // ── Fade helpers ──────────────────────────────────────────────────────────
-    function fadeIn() {
-      const now = ctx.currentTime;
-      gainNode.gain.cancelScheduledValues(now);
-      gainNode.gain.setValueAtTime(MIN_GAIN, now);
-      gainNode.gain.exponentialRampToValueAtTime(1, now + FADE_IN);
-    }
-
-    function fadeOutThen(cb) {
-      if (fadeTimer) { clearTimeout(fadeTimer); fadeTimer = null; }
-      const now = ctx.currentTime;
-      gainNode.gain.cancelScheduledValues(now);
-      gainNode.gain.setValueAtTime(Math.max(gainNode.gain.value, MIN_GAIN), now);
-      gainNode.gain.exponentialRampToValueAtTime(MIN_GAIN, now + FADE_OUT);
-      fadeTimer = setTimeout(() => { fadeTimer = null; cb && cb(); }, FADE_OUT * 1000 + 20);
-    }
-
-    // ── Natural end-of-clip fade ──────────────────────────────────────────────
-    player.addEventListener('timeupdate', () => {
-      if (!player.duration) return;
-      const remaining = player.duration - player.currentTime;
-      if (remaining > 0 && remaining <= FADE_OUT + 0.15) {
-        const now = ctx.currentTime;
-        gainNode.gain.cancelScheduledValues(now);
-        gainNode.gain.setValueAtTime(Math.max(gainNode.gain.value, MIN_GAIN), now);
-        gainNode.gain.exponentialRampToValueAtTime(MIN_GAIN, now + remaining);
-      }
-    });
-
-    player.addEventListener('ended', () => {
-      gainNode.gain.cancelScheduledValues(ctx.currentTime);
-      gainNode.gain.setValueAtTime(MIN_GAIN, ctx.currentTime);
-      stopProgress();
-      currentFile = null;
-      nowPlaying.textContent = '';
-      btnStop.disabled = true;
-      showPlay();
-      document.querySelectorAll('#clip-list li').forEach(el => el.classList.remove('active'));
-    });
-
-    // ── Clip tap ──────────────────────────────────────────────────────────────
-    function onClipTap(file, label, li) {
+    // ── iOS warmup — play a silent buffer to truly unlock audio output ─────────
+    // Must be called synchronously inside a user gesture.
+    function warmup() {
       ctx.resume();
-      if (fadeTimer) { clearTimeout(fadeTimer); fadeTimer = null; }
+      const silent = ctx.createBuffer(1, 1, ctx.sampleRate);
+      const src    = ctx.createBufferSource();
+      src.buffer   = silent;
+      src.connect(ctx.destination);
+      src.start(0);
+    }
 
-      document.querySelectorAll('#clip-list li').forEach(el => el.classList.remove('active'));
-      li.classList.add('active');
-      nowPlaying.textContent = `Playing: ${label}`;
-      btnStop.disabled = false;
+    // ── Overlay tap: unlock → fetch → decode → dismiss ────────────────────────
+    overlay.addEventListener('click', async () => {
+      // Step 1: warmup synchronously (must be in same call stack as gesture)
+      warmup();
+
+      overlayBtn.textContent    = 'Loading…';
+      overlayBtn.disabled       = true;
+      overlayStatus.textContent = '';
+
+      // Step 2: fetch all files in parallel
+      let loaded = 0;
+      const results = await Promise.allSettled(clips.map(async ({ file }) => {
+        const res    = await fetch(file);
+        const arrBuf = await res.arrayBuffer();
+        // Callback form of decodeAudioData for maximum Safari compatibility
+        return new Promise((resolve, reject) => {
+          ctx.decodeAudioData(arrBuf,
+            decoded => { buffers[file] = decoded; resolve(); },
+            err     => reject(err)
+          );
+        }).then(() => {
+          loaded++;
+          overlayStatus.textContent = `${loaded} / ${clips.length}`;
+        });
+      }));
+
+      const failed = results.filter(r => r.status === 'rejected').length;
+      if (failed > 0) {
+        overlayStatus.textContent = `${failed} clip(s) failed to load`;
+        overlayBtn.textContent    = 'Tap to retry';
+        overlayBtn.disabled       = false;
+        return;
+      }
+
+      // Step 3: dismiss overlay — everything is in memory
+      overlay.style.display = 'none';
       btnPlayPause.disabled = false;
+    });
 
-      // Use preloaded blob URL if ready, otherwise fall back to original path
-      const src = blobURLs[file] || file;
+    // ── Stop active source with gain fade ─────────────────────────────────────
+    function stopActive(then) {
+      if (fadeTimer) { clearTimeout(fadeTimer); fadeTimer = null; }
+      if (!activeSource) { then && then(); return; }
 
-      // Fade out current audio, then immediately switch to new clip
+      const src  = activeSource;
+      activeSource = null;
+
       const now = ctx.currentTime;
-      gainNode.gain.cancelScheduledValues(now);
-      gainNode.gain.setValueAtTime(Math.max(gainNode.gain.value, MIN_GAIN), now);
-      gainNode.gain.exponentialRampToValueAtTime(MIN_GAIN, now + FADE_OUT);
+      masterGain.gain.cancelScheduledValues(now);
+      masterGain.gain.setValueAtTime(Math.max(masterGain.gain.value, MIN_GAIN), now);
+      masterGain.gain.exponentialRampToValueAtTime(MIN_GAIN, now + FADE_OUT);
 
       fadeTimer = setTimeout(() => {
         fadeTimer = null;
-        player.pause();
-        currentFile = file;
-        player.src = src;
-        // No player.load() — let play() trigger loading; avoids extra round-trip delay
-        player.play().catch(() => {});
-        fadeIn();
-        startProgress();
-        showPause();
+        try { src.stop(); } catch(e) {}
+        src.disconnect();
+        then && then();
       }, FADE_OUT * 1000 + 20);
+    }
+
+    // ── Start a BufferSource from an offset ───────────────────────────────────
+    function startFrom(file, label, offset) {
+      const buffer    = buffers[file];
+      if (!buffer) return;
+      const remaining = buffer.duration - offset;
+      if (remaining <= 0) return;
+
+      const now = ctx.currentTime;
+
+      // Fade in
+      masterGain.gain.cancelScheduledValues(now);
+      masterGain.gain.setValueAtTime(MIN_GAIN, now);
+      masterGain.gain.exponentialRampToValueAtTime(1, now + FADE_IN);
+
+      // Pre-schedule natural end fade
+      const fadeOutAt = now + remaining - FADE_OUT;
+      if (fadeOutAt > now + FADE_IN) {
+        masterGain.gain.setValueAtTime(1, fadeOutAt);
+        masterGain.gain.exponentialRampToValueAtTime(MIN_GAIN, now + remaining);
+      }
+
+      const src = ctx.createBufferSource();
+      src.buffer = buffer;
+      src.connect(masterGain);
+      src.start(now, offset);
+
+      src.onended = () => {
+        if (activeSource !== src) return;
+        activeSource = null;
+        activeMeta   = null;
+        isPaused     = false;
+        pauseOffset  = 0;
+        stopProgressRaf();
+        progressBar.style.width = '0%';
+        nowPlaying.textContent  = '';
+        btnStop.disabled        = true;
+        showPlay();
+        document.querySelectorAll('#clip-list li').forEach(el => el.classList.remove('active'));
+      };
+
+      activeSource = src;
+      activeMeta   = { file, label, startedAt: now - offset, duration: buffer.duration };
+      isPaused     = false;
+
+      nowPlaying.textContent = `Playing: ${label}`;
+      btnStop.disabled       = false;
+      showPause();
+      startProgress();
+    }
+
+    // ── Clip tap ──────────────────────────────────────────────────────────────
+    function onClipTap(file, label, li) {
+      if (!buffers[file]) return; // not loaded yet (shouldn't happen post-overlay)
+      ctx.resume();
+
+      document.querySelectorAll('#clip-list li').forEach(el => el.classList.remove('active'));
+      li.classList.add('active');
+
+      stopActive(() => startFrom(file, label, 0));
     }
 
     // ── Play/Pause ────────────────────────────────────────────────────────────
     btnPlayPause.addEventListener('click', () => {
       ctx.resume();
-      if (!player.paused) {
-        fadeOutThen(() => player.pause());
+
+      if (activeSource && !isPaused) {
+        // Pause: capture position before stopping
+        const savedMeta = activeMeta;
+        pauseOffset = Math.min(ctx.currentTime - activeMeta.startedAt, activeMeta.duration);
+        isPaused    = true;
         stopProgressRaf();
-        if (player.duration) {
-          progressBar.style.width = (player.currentTime / player.duration * 100) + '%';
-        }
+        // Hold bar at pause position
+        progressBar.style.width = (pauseOffset / savedMeta.duration * 100) + '%';
+        stopActive(() => { activeMeta = savedMeta; isPaused = true; });
         showPlay();
-      } else if (player.src) {
-        fadeIn();
-        player.play().catch(() => {});
-        startProgress();
-        showPause();
+
+      } else if (isPaused && activeMeta) {
+        // Resume from saved offset
+        const savedMeta   = activeMeta;
+        const savedOffset = pauseOffset;
+        stopActive(() => startFrom(savedMeta.file, savedMeta.label, savedOffset));
       }
     });
 
     // ── Stop ──────────────────────────────────────────────────────────────────
     btnStop.addEventListener('click', () => {
       ctx.resume();
-      fadeOutThen(() => { player.pause(); player.currentTime = 0; });
+      stopActive();
       stopProgress();
-      currentFile = null;
+      activeMeta  = null;
+      isPaused    = false;
+      pauseOffset = 0;
       nowPlaying.textContent = '';
-      btnStop.disabled = true;
+      btnStop.disabled       = true;
       showPlay();
       document.querySelectorAll('#clip-list li').forEach(el => el.classList.remove('active'));
     });
@@ -331,8 +431,9 @@
     function startProgress() {
       stopProgressRaf();
       (function tick() {
-        if (player.duration) {
-          progressBar.style.width = (player.currentTime / player.duration * 100) + '%';
+        if (activeMeta && activeSource) {
+          const pct = Math.min((ctx.currentTime - activeMeta.startedAt) / activeMeta.duration, 1) * 100;
+          progressBar.style.width = pct + '%';
         }
         progressRaf = requestAnimationFrame(tick);
       })();
@@ -348,7 +449,6 @@
     }
 
     // ── Init ──────────────────────────────────────────────────────────────────
-    btnPlayPause.disabled = false;
     showPlay();
   </script>
 </body>
