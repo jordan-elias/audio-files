@@ -3,15 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <title>Audio Clips</title>
-
-  <!-- Mobile viewport -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-
   <style>
     * {
       box-sizing: border-box;
     }
-
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
       margin: 0;
@@ -21,8 +17,6 @@
       display: flex;
       flex-direction: column;
     }
-
-    /* Sticky header */
     .header {
       position: sticky;
       top: 0;
@@ -31,31 +25,25 @@
       padding: 12px 14px 10px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.05);
     }
-
     h1 {
       font-size: 1.1rem;
       margin: 0 0 8px 0;
       text-align: center;
     }
-
     audio {
       width: 100%;
     }
-
-    /* Scroll container */
     .list-container {
       flex: 1;
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
       padding: 10px 14px 24px;
     }
-
     ul {
       list-style: none;
       padding: 0;
       margin: 0;
     }
-
     li {
       padding: 14px 12px;
       margin-bottom: 8px;
@@ -68,17 +56,13 @@
       text-align: center;
       user-select: none;
     }
-
     li:active {
       transform: scale(0.98);
       background: #f0f0f0;
     }
-
     li:hover {
       background: #f7f7f7;
     }
-
-    /* Desktop enhancement */
     @media (min-width: 700px) {
       body {
         max-width: 600px;
@@ -89,115 +73,130 @@
     }
   </style>
 </head>
-
 <body>
-
   <div class="header">
     <h1>Audio Clips</h1>
     <audio id="player" controls>
       Your browser does not support the audio element.
     </audio>
   </div>
-
   <div class="list-container">
-    <ul>
-      <li onclick="playClip('audio/1.wav')">1</li>
-      <li onclick="playClip('audio/2.wav')">2</li>
-      <li onclick="playClip('audio/3.wav')">3</li>
-      <li onclick="playClip('audio/4.wav')">4</li>
-      <li onclick="playClip('audio/5.wav')">5</li>
-      <li onclick="playClip('audio/6.wav')">6</li>
-      <li onclick="playClip('audio/7.wav')">7</li>
-      <li onclick="playClip('audio/8.wav')">8</li>
-    </ul>
+    <ul id="clip-list"></ul>
   </div>
 
-  
-<script>
-  const player = document.getElementById('player');
+  <script>
+    const player = document.getElementById('player');
+    const list = document.getElementById('clip-list');
 
-  const AudioCtx = window.AudioContext || window.webkitAudioContext;
-  const ctx = new AudioCtx();
-  const source = ctx.createMediaElementSource(player);
-  const gainNode = ctx.createGain();
-  source.connect(gainNode);
-  gainNode.connect(ctx.destination);
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    const ctx = new AudioCtx();
+    const source = ctx.createMediaElementSource(player);
+    const gainNode = ctx.createGain();
+    source.connect(gainNode);
+    gainNode.connect(ctx.destination);
+    gainNode.gain.setValueAtTime(1, ctx.currentTime);
 
-  gainNode.gain.setValueAtTime(1, ctx.currentTime);
+    const FADE_IN  = 0.08;
+    const FADE_OUT = 0.1;
+    const MIN_GAIN = 0.0001;
 
-  const FADE_IN  = 0.08;   // seconds — longer gives iOS more time to respond
-  const FADE_OUT = 0.1;
-  const MIN_GAIN = 0.0001; // exponential ramps can't go to exactly 0
+    let fadeOutTimer = null;
+    let pendingSrc = null;
 
-  let fadeOutTimer = null;
-  let pendingSrc = null;
+    const clips = [
+      { label: '1', file: 'audio/1.wav' },
+      { label: '2', file: 'audio/2.wav' },
+      { label: '3', file: 'audio/3.wav' },
+      { label: '4', file: 'audio/4.wav' },
+      { label: '5', file: 'audio/5.wav' },
+      { label: '6', file: 'audio/6.wav' },
+      { label: '7', file: 'audio/7.wav' },
+      { label: '8', file: 'audio/8.wav' },
+    ];
 
-  function cancelPending() {
-    if (fadeOutTimer) { clearTimeout(fadeOutTimer); fadeOutTimer = null; }
-    pendingSrc = null;
-  }
+    const objectURLs = {};
 
-  function fadeIn() {
-    const now = ctx.currentTime;
-    gainNode.gain.cancelScheduledValues(now);
-    gainNode.gain.setValueAtTime(MIN_GAIN, now);
-    gainNode.gain.exponentialRampToValueAtTime(1, now + FADE_IN);
-  }
+    async function preloadAll() {
+      await Promise.all(clips.map(async ({ file }) => {
+        try {
+          const res = await fetch(file);
+          const blob = await res.blob();
+          objectURLs[file] = URL.createObjectURL(blob);
+        } catch (e) {
+          console.warn('Failed to preload:', file, e);
+        }
+      }));
+    }
 
-  function fadeOutThen(callback) {
-    const now = ctx.currentTime;
-    gainNode.gain.cancelScheduledValues(now);
-    gainNode.gain.setValueAtTime(Math.max(gainNode.gain.value, MIN_GAIN), now);
-    gainNode.gain.exponentialRampToValueAtTime(MIN_GAIN, now + FADE_OUT);
-    // Wait for fade to fully complete before acting
-    fadeOutTimer = setTimeout(callback, (FADE_OUT * 1000) + 50); // +50ms buffer for iOS lag
-  }
+    clips.forEach(({ label, file }) => {
+      const li = document.createElement('li');
+      li.textContent = label;
+      li.addEventListener('click', () => playClip(file));
+      list.appendChild(li);
+    });
 
-  // Fade out near end of clip using timeupdate
-  // Schedule it early enough that even slow iOS timeupdate firing catches it
-  player.addEventListener('timeupdate', () => {
-    if (!player.duration) return;
-    const remaining = player.duration - player.currentTime;
-    if (remaining > 0 && remaining <= FADE_OUT + 0.15) {
+    function cancelPending() {
+      if (fadeOutTimer) { clearTimeout(fadeOutTimer); fadeOutTimer = null; }
+      pendingSrc = null;
+    }
+
+    function fadeIn() {
+      const now = ctx.currentTime;
+      gainNode.gain.cancelScheduledValues(now);
+      gainNode.gain.setValueAtTime(MIN_GAIN, now);
+      gainNode.gain.exponentialRampToValueAtTime(1, now + FADE_IN);
+    }
+
+    function fadeOutThen(callback) {
       const now = ctx.currentTime;
       gainNode.gain.cancelScheduledValues(now);
       gainNode.gain.setValueAtTime(Math.max(gainNode.gain.value, MIN_GAIN), now);
-      gainNode.gain.exponentialRampToValueAtTime(MIN_GAIN, now + remaining);
+      gainNode.gain.exponentialRampToValueAtTime(MIN_GAIN, now + FADE_OUT);
+      fadeOutTimer = setTimeout(callback, (FADE_OUT * 1000) + 50);
     }
-  });
 
-  // Ensure gain is silent when a clip ends naturally, before any new play
-  player.addEventListener('ended', () => {
-    gainNode.gain.cancelScheduledValues(ctx.currentTime);
-    gainNode.gain.setValueAtTime(MIN_GAIN, ctx.currentTime);
-  });
+    player.addEventListener('timeupdate', () => {
+      if (!player.duration) return;
+      const remaining = player.duration - player.currentTime;
+      if (remaining > 0 && remaining <= FADE_OUT + 0.15) {
+        const now = ctx.currentTime;
+        gainNode.gain.cancelScheduledValues(now);
+        gainNode.gain.setValueAtTime(Math.max(gainNode.gain.value, MIN_GAIN), now);
+        gainNode.gain.exponentialRampToValueAtTime(MIN_GAIN, now + remaining);
+      }
+    });
 
-  function playClip(src) {
-    cancelPending();
-    ctx.resume();
+    player.addEventListener('ended', () => {
+      gainNode.gain.cancelScheduledValues(ctx.currentTime);
+      gainNode.gain.setValueAtTime(MIN_GAIN, ctx.currentTime);
+    });
 
-    if (player.paused || player.ended) {
-      // Nothing playing — just load and fade in
-      player.src = src;
-      player.load();
-      fadeIn();
-      player.play().catch(() => {});
-    } else {
-      // Something is playing — fade out first, then switch
-      pendingSrc = src;
-      fadeOutThen(() => {
-        if (!pendingSrc) return; // cancelled by another tap
-        const nextSrc = pendingSrc;
-        pendingSrc = null;
-        player.src = nextSrc;
+    function playClip(file) {
+      cancelPending();
+      ctx.resume();
+
+      const src = objectURLs[file] || file;
+
+      if (player.paused || player.ended) {
+        player.src = src;
         player.load();
         fadeIn();
         player.play().catch(() => {});
-      });
+      } else {
+        pendingSrc = src;
+        fadeOutThen(() => {
+          if (!pendingSrc) return;
+          const nextSrc = pendingSrc;
+          pendingSrc = null;
+          player.src = nextSrc;
+          player.load();
+          fadeIn();
+          player.play().catch(() => {});
+        });
+      }
     }
-  }
-</script>
 
-
+    preloadAll();
+  </script>
 </body>
 </html>
