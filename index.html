@@ -303,7 +303,8 @@
         return;
       }
 
-      // Step 3: dismiss overlay — everything is in memory
+      // Step 3: re-resume context after all the awaits (iOS re-suspends across async gaps)
+      await ctx.resume();
       overlay.style.display = 'none';
       btnPlayPause.disabled = false;
     });
@@ -350,6 +351,8 @@
         masterGain.gain.exponentialRampToValueAtTime(MIN_GAIN, now + remaining);
       }
 
+      // Final safety net: ensure context is running before start()
+      if (ctx.state !== 'running') ctx.resume();
       const src = ctx.createBufferSource();
       src.buffer = buffer;
       src.connect(masterGain);
@@ -381,8 +384,12 @@
 
     // ── Clip tap ──────────────────────────────────────────────────────────────
     function onClipTap(file, label, li) {
-      if (!buffers[file]) return; // not loaded yet (shouldn't happen post-overlay)
-      ctx.resume();
+      if (!buffers[file]) return;
+
+      // Re-warmup on every tap: iOS can re-suspend the context at any time.
+      // Playing a fresh silent buffer synchronously inside the gesture guarantees
+      // the context is running when startFrom() calls src.start().
+      warmup();
 
       document.querySelectorAll('#clip-list li').forEach(el => el.classList.remove('active'));
       li.classList.add('active');
@@ -392,7 +399,7 @@
 
     // ── Play/Pause ────────────────────────────────────────────────────────────
     btnPlayPause.addEventListener('click', () => {
-      ctx.resume();
+      warmup();
 
       if (activeSource && !isPaused) {
         // Pause: capture position before stopping
@@ -415,7 +422,7 @@
 
     // ── Stop ──────────────────────────────────────────────────────────────────
     btnStop.addEventListener('click', () => {
-      ctx.resume();
+      warmup();
       stopActive();
       stopProgress();
       activeMeta  = null;
