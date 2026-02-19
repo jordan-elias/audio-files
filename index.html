@@ -112,33 +112,76 @@
     </ul>
   </div>
 
-  <script>
+  
+<script>
   const player = document.getElementById('player');
 
-  // --- WebAudio soft envelope ---
   const AudioCtx = window.AudioContext || window.webkitAudioContext;
   const ctx = new AudioCtx();
-
   const source = ctx.createMediaElementSource(player);
   const gainNode = ctx.createGain();
-
   source.connect(gainNode);
   gainNode.connect(ctx.destination);
 
+  const FADE_IN  = 0.03;  // seconds
+  const FADE_OUT = 0.05;  // seconds
+
+  // Fade out, then execute callback once fade is done
+  function fadeOutThen(callback) {
+    const now = ctx.currentTime;
+    gainNode.gain.cancelScheduledValues(now);
+    gainNode.gain.setValueAtTime(gainNode.gain.value, now);
+    gainNode.gain.linearRampToValueAtTime(0, now + FADE_OUT);
+    setTimeout(callback, FADE_OUT * 1000);
+  }
+
+  function fadeIn() {
+    const now = ctx.currentTime;
+    gainNode.gain.cancelScheduledValues(now);
+    gainNode.gain.setValueAtTime(0, now);
+    gainNode.gain.linearRampToValueAtTime(1, now + FADE_IN);
+  }
+
+  // Fade out at natural end of clip
+  player.addEventListener('timeupdate', () => {
+    if (!player.duration) return;
+    const remaining = player.duration - player.currentTime;
+    if (remaining < FADE_OUT && remaining > 0) {
+      const now = ctx.currentTime;
+      gainNode.gain.cancelScheduledValues(now);
+      gainNode.gain.setValueAtTime(gainNode.gain.value, now);
+      gainNode.gain.linearRampToValueAtTime(0, now + remaining);
+    }
+  });
+
   function playClip(src) {
-    // Resume context (mobile requirement)
     ctx.resume();
 
-    // Cancel any scheduled ramps
-    gainNode.gain.cancelScheduledValues(ctx.currentTime);
+    if (!player.paused && player.src && player.src.endsWith(src)) {
+      // Same clip — just restart with a fade
+      fadeOutThen(() => {
+        player.currentTime = 0;
+        fadeIn();
+        player.play();
+      });
+      return;
+    }
 
-    // Soft start envelope
-    gainNode.gain.setValueAtTime(0, ctx.currentTime);
-    gainNode.gain.linearRampToValueAtTime(1, ctx.currentTime + 0.03); // 30ms fade-in
-
-    // Load + play
-    player.src = src;
-    player.play();
+    if (!player.paused) {
+      // Different clip playing — fade out first, then switch
+      fadeOutThen(() => {
+        player.src = src;
+        player.load();
+        player.play();
+        fadeIn();
+      });
+    } else {
+      // Nothing playing — load and fade in
+      player.src = src;
+      player.load();
+      player.play();
+      fadeIn();
+    }
   }
 </script>
 
