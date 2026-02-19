@@ -164,10 +164,10 @@
     #overlay-warning {
       color: #888;
       font-size: 0.8rem;
-      text-align: left;
+      text-align: center;
       line-height: 1.6;
       max-width: 240px;
-    }  
+    }
     #overlay-status {
       color: #888;
       font-size: 0.8rem;
@@ -204,6 +204,11 @@
   <div class="list-container">
     <ul id="clip-list"></ul>
   </div>
+
+  <!-- Silent keepalive — holds iOS audio session open through screen lock and app switch -->
+  <audio id="keepalive" loop playsinline style="display:none">
+    <source src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=" type="audio/wav">
+  </audio>
 
   <script>
     const clips = [
@@ -316,6 +321,28 @@
       await ctx.resume();
       overlay.style.display = 'none';
       btnPlayPause.disabled = false;
+
+      // Start the silent keepalive loop — this holds the iOS audio session open
+      // so the OS treats the page like an active media app, allowing audio to
+      // continue playing through screen lock and app switching.
+      const keepalive = document.getElementById('keepalive');
+      keepalive.play().catch(() => {});
+
+      // Auto-resume if iOS suspends the context anyway (e.g. phone call)
+      ctx.addEventListener('statechange', () => {
+        if (ctx.state === 'suspended' || ctx.state === 'interrupted') {
+          ctx.resume();
+        }
+      });
+
+      // When returning to the page, make sure both the context and keepalive
+      // are running in case the OS paused them while in the background.
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          ctx.resume();
+          keepalive.play().catch(() => {});
+        }
+      });
     });
 
     // ── Stop active source with gain fade ─────────────────────────────────────
