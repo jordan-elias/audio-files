@@ -144,6 +144,7 @@
     }
     #overlay h2 {
       color: white;
+      text-align: left;
       font-size: 1.1rem;
       font-weight: 500;
       letter-spacing: 0.02em;
@@ -164,7 +165,7 @@
     #overlay-warning {
       color: #888;
       font-size: 0.8rem;
-      text-align: center;
+      text-align: left;
       line-height: 1.6;
       max-width: 240px;
     }  
@@ -178,7 +179,8 @@
 <body>
   <div id="overlay">
     <h2>Audio Clips</h2>
-    <p id="overlay-warning">If your phone is on silent, audio will not play.<br>Please put your phone on <i>do not disturb</i>, switch your ringer on, and turn your volume all the way up before continuing.</p>
+    <p id="overlay-warning">If your phone is on silent, audio will not play.</p>
+    <p>Please put your phone on <i>do not disturb</i>, switch your ringer on, <br>and turn your volume all the way up before continuing.</p>
     <button id="overlay-btn">Tap to load sounds</button>
     <span id="overlay-status"></span>
   </div>
