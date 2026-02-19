@@ -156,13 +156,13 @@
   <script>
     const clips = [
       { label: '1', file: 'audio/00 - audio - 1.mp3' },
-      { label: '2', file: 'audio/00 - audio - 12.mp3' },
-      { label: '3', file: 'audio/00 - audio - 13.mp3' },
-      { label: '4', file: 'audio/00 - audio - 14.mp3' },
-      { label: '5', file: 'audio/00 - audio - 15.mp3' },
-      { label: '6', file: 'audio/00 - audio - 16.mp3' },
-      { label: '7', file: 'audio/00 - audio - 17.mp3' },
-      { label: '8', file: 'audio/00 - audio - 18.mp3' },
+      { label: '2', file: 'audio/00 - audio - 2.mp3' },
+      { label: '3', file: 'audio/00 - audio - 3.mp3' },
+      { label: '4', file: 'audio/00 - audio - 4.mp3' },
+      { label: '5', file: 'audio/00 - audio - 5.mp3' },
+      { label: '6', file: 'audio/00 - audio - 6.mp3' },
+      { label: '7', file: 'audio/00 - audio - 7.mp3' },
+      { label: '8', file: 'audio/00 - audio - 8.mp3' },
     ];
 
     const FADE_IN  = 0.06;  // seconds
@@ -249,43 +249,32 @@
     function onClipTap(file, label, li) {
       ctx.resume();
 
+      // Cancel any in-progress fade/switch immediately
+      if (fadeTimer) { clearTimeout(fadeTimer); fadeTimer = null; }
+
       document.querySelectorAll('#clip-list li').forEach(el => el.classList.remove('active'));
       li.classList.add('active');
       nowPlaying.textContent = `Playing: ${label}`;
       btnStop.disabled = false;
       btnPlayPause.disabled = false;
 
-      if (!player.paused && currentFile === file) {
-        // Tapped same clip — restart it
-        fadeOutThen(() => {
-          player.currentTime = 0;
-          fadeIn();
-          player.play().catch(() => {});
-        });
-        return;
-      }
+      // Always: fade out whatever is playing, then load and play the new clip
+      const now = ctx.currentTime;
+      gainNode.gain.cancelScheduledValues(now);
+      gainNode.gain.setValueAtTime(Math.max(gainNode.gain.value, MIN_GAIN), now);
+      gainNode.gain.exponentialRampToValueAtTime(MIN_GAIN, now + FADE_OUT);
 
-      if (!player.paused) {
-        // Different clip — fade out then switch
-        fadeOutThen(() => {
-          currentFile = file;
-          player.src = file;
-          player.load();
-          fadeIn();
-          player.play().catch(() => {});
-          startProgress();
-          showPause();
-        });
-      } else {
-        // Nothing playing — just start
+      fadeTimer = setTimeout(() => {
+        fadeTimer = null;
+        player.pause();
         currentFile = file;
         player.src = file;
         player.load();
-        fadeIn();
         player.play().catch(() => {});
+        fadeIn();
         startProgress();
         showPause();
-      }
+      }, FADE_OUT * 1000 + 30);
     }
 
     // ── Play/Pause ────────────────────────────────────────────────────────────
