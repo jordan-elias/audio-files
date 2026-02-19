@@ -5,45 +5,94 @@
   <title>Audio Clips</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <style>
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
+
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
       margin: 0;
-      background: #000000;
+      background: #000;
       color: #111;
-      height: 100vh;
+      min-height: 100vh;
       display: flex;
       flex-direction: column;
     }
+
     .header {
       position: sticky;
       top: 0;
       background: white;
       z-index: 10;
       padding: 12px 14px 10px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
     }
+
     h1 {
       font-size: 1.1rem;
-      margin: 0 0 8px 0;
+      margin: 0 0 10px 0;
       text-align: center;
     }
-    audio {
-      width: 100%;
+
+    /* Custom transport controls */
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
+
+    .btn {
+      border: none;
+      border-radius: 6px;
+      padding: 8px 14px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      background: #eee;
+      color: #111;
+      transition: background 0.15s;
+      flex-shrink: 0;
+    }
+    .btn:active { background: #ddd; }
+    .btn.primary { background: #111; color: white; }
+    .btn.primary:active { background: #333; }
+
+    .now-playing {
+      flex: 1;
+      font-size: 0.85rem;
+      color: #555;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-align: center;
+    }
+
+    /* Progress bar */
+    .progress-wrap {
+      margin-top: 8px;
+      height: 4px;
+      background: #eee;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: #111;
+      border-radius: 2px;
+      transition: width 0.25s linear;
+    }
+
     .list-container {
       flex: 1;
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
       padding: 10px 14px 24px;
     }
+
     ul {
       list-style: none;
       padding: 0;
       margin: 0;
     }
+
     li {
       padding: 14px 12px;
       margin-bottom: 8px;
@@ -56,13 +105,17 @@
       text-align: center;
       user-select: none;
     }
-    li:active {
-      transform: scale(0.98);
-      background: #f0f0f0;
+    li:active { transform: scale(0.98); background: #f0f0f0; }
+    li:hover { background: #f7f7f7; }
+    li.active { border-color: #111; background: #f7f7f7; }
+
+    .loading-indicator {
+      text-align: center;
+      padding: 10px;
+      font-size: 0.8rem;
+      color: #888;
     }
-    li:hover {
-      background: #f7f7f7;
-    }
+
     @media (min-width: 700px) {
       body {
         max-width: 600px;
@@ -76,126 +129,273 @@
 <body>
   <div class="header">
     <h1>Audio Clips</h1>
-    <audio id="player" controls>
-      Your browser does not support the audio element.
-    </audio>
+    <div class="controls">
+      <button class="btn primary" id="btn-play-pause" disabled>▶</button>
+      <button class="btn" id="btn-stop" disabled>■</button>
+      <span class="now-playing" id="now-playing">Nothing selected</span>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-bar" id="progress-bar"></div>
+    </div>
   </div>
+
   <div class="list-container">
+    <div class="loading-indicator" id="loading-msg">Loading clips…</div>
     <ul id="clip-list"></ul>
   </div>
 
   <script>
-    const player = document.getElementById('player');
-    const list = document.getElementById('clip-list');
-
-    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    const ctx = new AudioCtx();
-    const source = ctx.createMediaElementSource(player);
-    const gainNode = ctx.createGain();
-    source.connect(gainNode);
-    gainNode.connect(ctx.destination);
-    gainNode.gain.setValueAtTime(1, ctx.currentTime);
-
-    const FADE_IN  = 0.08;
-    const FADE_OUT = 0.1;
-    const MIN_GAIN = 0.0001;
-
-    let fadeOutTimer = null;
-    let pendingSrc = null;
-
+    // ── Config ─────────────────────────────────────────────────────────────────
     const clips = [
-      { label: '1', file: 'audio/1.wav' },
-      { label: '2', file: 'audio/2.wav' },
-      { label: '3', file: 'audio/3.wav' },
-      { label: '4', file: 'audio/4.wav' },
-      { label: '5', file: 'audio/5.wav' },
-      { label: '6', file: 'audio/6.wav' },
-      { label: '7', file: 'audio/7.wav' },
-      { label: '8', file: 'audio/8.wav' },
+      { label: '1', file: 'audio/1.mp3' },
+      { label: '2', file: 'audio/2.mp3' },
+      { label: '3', file: 'audio/3.mp3' },
+      { label: '4', file: 'audio/4.mp3' },
+      { label: '5', file: 'audio/5.mp3' },
+      { label: '6', file: 'audio/6.mp3' },
+      { label: '7', file: 'audio/7.mp3' },
+      { label: '8', file: 'audio/8.mp3' },
     ];
 
-    const objectURLs = {};
+    const FADE_IN  = 0.06;   // seconds
+    const FADE_OUT = 0.08;   // seconds
+    const MIN_GAIN = 0.0001; // -80dB, effectively silent
 
-    async function preloadAll() {
-      await Promise.all(clips.map(async ({ file }) => {
-        try {
-          const res = await fetch(file);
-          const blob = await res.blob();
-          objectURLs[file] = URL.createObjectURL(blob);
-        } catch (e) {
-          console.warn('Failed to preload:', file, e);
-        }
-      }));
-    }
+    // ── Web Audio setup ────────────────────────────────────────────────────────
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    let ctx; // created on first user gesture (iOS requirement)
 
+    const buffers = {}; // file -> decoded AudioBuffer
+    let activeSource = null;
+    let activeGain   = null;
+    let activeMeta   = null; // { file, startedAt, offset, duration }
+    let isPaused     = false;
+    let stopTimer    = null;
+
+    // ── UI refs ────────────────────────────────────────────────────────────────
+    const btnPlayPause  = document.getElementById('btn-play-pause');
+    const btnStop       = document.getElementById('btn-stop');
+    const nowPlaying    = document.getElementById('now-playing');
+    const progressBar   = document.getElementById('progress-bar');
+    const loadingMsg    = document.getElementById('loading-msg');
+    const clipList      = document.getElementById('clip-list');
+
+    let progressInterval = null;
+
+    // ── Build list items ───────────────────────────────────────────────────────
     clips.forEach(({ label, file }) => {
       const li = document.createElement('li');
       li.textContent = label;
-      li.addEventListener('click', () => playClip(file));
-      list.appendChild(li);
+      li.dataset.file = file;
+      li.addEventListener('click', () => onClipTap(file, label, li));
+      clipList.appendChild(li);
     });
 
-    function cancelPending() {
-      if (fadeOutTimer) { clearTimeout(fadeOutTimer); fadeOutTimer = null; }
-      pendingSrc = null;
+    // ── Preload all clips ──────────────────────────────────────────────────────
+    // We do this after a tiny delay so the page renders first
+    async function preloadAll() {
+      // AudioContext must exist to decode — create it now (no user gesture needed
+      // just for decoding, only for playback)
+      ctx = new AudioCtx();
+
+      let loaded = 0;
+      await Promise.all(clips.map(async ({ file, label }) => {
+        try {
+          const res = await fetch(file);
+          const arrayBuf = await res.arrayBuffer();
+          buffers[file] = await ctx.decodeAudioData(arrayBuf);
+          loaded++;
+          loadingMsg.textContent = `Loading… ${loaded}/${clips.length}`;
+        } catch (e) {
+          console.warn('Failed to load:', file, e);
+        }
+      }));
+
+      loadingMsg.textContent = '';
+      loadingMsg.style.display = 'none';
+      btnPlayPause.disabled = false;
     }
 
-    function fadeIn() {
+    // ── Core playback ──────────────────────────────────────────────────────────
+    function createNodes() {
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(MIN_GAIN, ctx.currentTime);
+      gain.connect(ctx.destination);
+      return gain;
+    }
+
+    function startPlayback(file, offset = 0) {
+      const buffer = buffers[file];
+      if (!buffer) return;
+
+      const gain = createNodes();
+      const src  = ctx.createBufferSource();
+      src.buffer = buffer;
+      src.connect(gain);
+
       const now = ctx.currentTime;
-      gainNode.gain.cancelScheduledValues(now);
-      gainNode.gain.setValueAtTime(MIN_GAIN, now);
-      gainNode.gain.exponentialRampToValueAtTime(1, now + FADE_IN);
-    }
 
-    function fadeOutThen(callback) {
-      const now = ctx.currentTime;
-      gainNode.gain.cancelScheduledValues(now);
-      gainNode.gain.setValueAtTime(Math.max(gainNode.gain.value, MIN_GAIN), now);
-      gainNode.gain.exponentialRampToValueAtTime(MIN_GAIN, now + FADE_OUT);
-      fadeOutTimer = setTimeout(callback, (FADE_OUT * 1000) + 50);
-    }
+      // Fade in
+      gain.gain.cancelScheduledValues(now);
+      gain.gain.setValueAtTime(MIN_GAIN, now);
+      gain.gain.exponentialRampToValueAtTime(1, now + FADE_IN);
 
-    player.addEventListener('timeupdate', () => {
-      if (!player.duration) return;
-      const remaining = player.duration - player.currentTime;
-      if (remaining > 0 && remaining <= FADE_OUT + 0.15) {
-        const now = ctx.currentTime;
-        gainNode.gain.cancelScheduledValues(now);
-        gainNode.gain.setValueAtTime(Math.max(gainNode.gain.value, MIN_GAIN), now);
-        gainNode.gain.exponentialRampToValueAtTime(MIN_GAIN, now + remaining);
+      // Schedule fade out before natural end
+      const remaining = buffer.duration - offset;
+      const fadeOutAt = now + remaining - FADE_OUT;
+      if (fadeOutAt > now) {
+        gain.gain.setValueAtTime(1, fadeOutAt);
+        gain.gain.exponentialRampToValueAtTime(MIN_GAIN, now + remaining);
       }
-    });
 
-    player.addEventListener('ended', () => {
-      gainNode.gain.cancelScheduledValues(ctx.currentTime);
-      gainNode.gain.setValueAtTime(MIN_GAIN, ctx.currentTime);
-    });
+      src.start(now, offset);
 
-    function playClip(file) {
-      cancelPending();
+      // Clean up after clip ends
+      src.onended = () => {
+        if (activeSource === src) {
+          activeSource = null;
+          activeGain   = null;
+          activeMeta   = null;
+          isPaused     = false;
+          updateUI(null, null);
+          stopProgresstracker();
+        }
+      };
+
+      activeSource = src;
+      activeGain   = gain;
+      activeMeta   = {
+        file,
+        startedAt: now - offset, // ctx time when offset=0 would have started
+        offset,
+        duration: buffer.duration
+      };
+      isPaused = false;
+    }
+
+    function stopPlayback(then) {
+      if (stopTimer) { clearTimeout(stopTimer); stopTimer = null; }
+      if (!activeSource) { then && then(); return; }
+
+      const gain = activeGain;
+      const src  = activeSource;
+      const now  = ctx.currentTime;
+
+      // Clear any previously scheduled ramps so they don't fight us
+      gain.gain.cancelScheduledValues(now);
+      gain.gain.setValueAtTime(Math.max(gain.gain.value, MIN_GAIN), now);
+      gain.gain.exponentialRampToValueAtTime(MIN_GAIN, now + FADE_OUT);
+
+      activeSource = null;
+      activeGain   = null;
+
+      stopTimer = setTimeout(() => {
+        try { src.stop(); } catch(e) {}
+        src.disconnect();
+        gain.disconnect();
+        then && then();
+      }, FADE_OUT * 1000 + 30);
+    }
+
+    // ── User interactions ──────────────────────────────────────────────────────
+    function onClipTap(file, label, li) {
+      // iOS: AudioContext must be resumed from a user gesture
+      if (!ctx) ctx = new AudioCtx();
       ctx.resume();
 
-      const src = objectURLs[file] || file;
+      // Highlight active item
+      document.querySelectorAll('#clip-list li').forEach(el => el.classList.remove('active'));
+      li.classList.add('active');
+      updateUI(label, file);
+      btnStop.disabled = false;
 
-      if (player.paused || player.ended) {
-        player.src = src;
-        player.load();
-        fadeIn();
-        player.play().catch(() => {});
+      const isSameClip = activeMeta && activeMeta.file === file;
+
+      if (isSameClip && !isPaused) {
+        // Restart from beginning
+        stopPlayback(() => {
+          startPlayback(file);
+          startProgressTracker();
+        });
+      } else if (isSameClip && isPaused) {
+        // Resume
+        resumePlayback();
       } else {
-        pendingSrc = src;
-        fadeOutThen(() => {
-          if (!pendingSrc) return;
-          const nextSrc = pendingSrc;
-          pendingSrc = null;
-          player.src = nextSrc;
-          player.load();
-          fadeIn();
-          player.play().catch(() => {});
+        // New clip
+        stopPlayback(() => {
+          startPlayback(file);
+          startProgressTracker();
         });
       }
     }
 
+    function resumePlayback() {
+      if (!activeMeta || !isPaused) return;
+      const offset = activeMeta.offset;
+      startPlayback(activeMeta.file, offset);
+      startProgressTracker();
+      btnPlayPause.textContent = '⏸';
+    }
+
+    btnPlayPause.addEventListener('click', () => {
+      if (!ctx) return;
+      ctx.resume();
+
+      if (!activeMeta && !isPaused) return;
+
+      if (!isPaused && activeSource) {
+        // Pause — store current offset
+        const elapsed = ctx.currentTime - activeMeta.startedAt;
+        activeMeta.offset = Math.min(elapsed, activeMeta.duration);
+        isPaused = true;
+        stopProgressTracker();
+        stopPlayback();
+        btnPlayPause.textContent = '▶';
+      } else if (isPaused && activeMeta) {
+        resumePlayback();
+        btnPlayPause.textContent = '⏸';
+      }
+    });
+
+    btnStop.addEventListener('click', () => {
+      ctx && ctx.resume();
+      stopPlayback();
+      stopProgressTracker();
+      isPaused = false;
+      activeMeta = null;
+      document.querySelectorAll('#clip-list li').forEach(el => el.classList.remove('active'));
+      updateUI(null, null);
+      btnStop.disabled = true;
+      btnPlayPause.textContent = '▶';
+    });
+
+    // ── Progress bar ───────────────────────────────────────────────────────────
+    function startProgressTracker() {
+      stopProgressTracker();
+      progressInterval = setInterval(() => {
+        if (!activeMeta || !activeSource) return;
+        const elapsed  = ctx.currentTime - activeMeta.startedAt;
+        const progress = Math.min(elapsed / activeMeta.duration, 1) * 100;
+        progressBar.style.width = progress + '%';
+        btnPlayPause.textContent = '⏸';
+      }, 100);
+    }
+
+    function stopProgressTracker() {
+      if (progressInterval) { clearInterval(progressInterval); progressInterval = null; }
+      progressBar.style.width = '0%';
+    }
+
+    // ── UI helpers ─────────────────────────────────────────────────────────────
+    function updateUI(label, file) {
+      nowPlaying.textContent = label ? `Playing: ${label}` : 'Nothing selected';
+      if (!label) {
+        progressBar.style.width = '0%';
+        btnPlayPause.textContent = '▶';
+      }
+    }
+
+    // ── Kick off preload ───────────────────────────────────────────────────────
     preloadAll();
   </script>
 </body>
