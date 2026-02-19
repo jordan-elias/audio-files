@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Audio Debug</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: monospace; background: #111; color: #0f0; padding: 12px; font-size: 13px; }
+    #log { white-space: pre-wrap; word-break: break-all; }
+    .btn {
+      display: block; width: 100%; padding: 16px; margin-bottom: 10px;
+      background: white; color: #111; border: none; font-size: 1rem;
+      font-family: monospace; cursor: pointer; text-align: center;
+    }
+    .row { display: flex; gap: 8px; margin-bottom: 10px; }
+    .row .btn { flex: 1; margin: 0; }
+  </style>
+</head>
+<body>
+  <button class="btn" id="btn-init">1. TAP TO INIT CONTEXT</button>
+  <button class="btn" id="btn-load">2. TAP TO LOAD CLIP</button>
+  <div class="row">
+    <button class="btn" id="btn-play">3. PLAY</button>
+    <button class="btn" id="btn-stop">STOP</button>
+  </div>
+  <pre id="log">Waiting for taps...\n</pre>
+
+  <script>
+    const log = document.getElementById('log');
+    function L(msg) {
+      const t = new Date().toISOString().slice(11,23);
+      log.textContent += `[${t}] ${msg}\n`;
+    }
+
+    let ctx, gainNode, buffer, src;
+
+    // ── 1. Init ───────────────────────────────────────────────────────────────
+    document.getElementById('btn-init').addEventListener('click', () => {
+      try {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) { L('ERROR: No AudioContext available'); return; }
+        ctx = new AC();
+        L(`ctx created. state=${ctx.state} sampleRate=${ctx.sampleRate}`);
+
+        // Warmup: silent buffer
+        const silent = ctx.createBuffer(1, 1, ctx.sampleRate);
+        const ws = ctx.createBufferSource();
+        ws.buffer = silent;
+        ws.connect(ctx.destination);
+        ws.start(0);
+        L(`warmup silent buffer played`);
+
+        gainNode = ctx.createGain();
+        gainNode.gain.setValueAtTime(1, ctx.currentTime);
+        gainNode.connect(ctx.destination);
+        L(`gainNode created. gain=${gainNode.gain.value}`);
+
+        ctx.resume().then(() => L(`ctx.resume() resolved. state=${ctx.state}`));
+
+        ctx.addEventListener('statechange', () => L(`statechange → ${ctx.state}`));
+      } catch(e) {
+        L(`INIT ERROR: ${e}`);
+      }
+    });
+
+    // ── 2. Load ───────────────────────────────────────────────────────────────
+    document.getElementById('btn-load').addEventListener('click', async () => {
+      if (!ctx) { L('ERROR: init first'); return; }
+      L(`starting fetch. ctx.state=${ctx.state}`);
+      try {
+        // Use first clip — adjust path if needed
+        const res = await fetch('audio/1.mp3');
+        L(`fetch done. status=${res.status} ok=${res.ok}`);
+        const arrBuf = await res.arrayBuffer();
+        L(`arrayBuffer size=${arrBuf.byteLength}`);
+
+        ctx.decodeAudioData(arrBuf,
+          decoded => {
+            buffer = decoded;
+            L(`decodeAudioData OK. duration=${decoded.duration.toFixed(2)}s channels=${decoded.numberOfChannels} rate=${decoded.sampleRate}`);
+          },
+          err => L(`decodeAudioData ERROR: ${err}`)
+        );
+      } catch(e) {
+        L(`LOAD ERROR: ${e}`);
+      }
+    });
+
+    // ── 3. Play ───────────────────────────────────────────────────────────────
+    document.getElementById('btn-play').addEventListener('click', () => {
+      if (!ctx)    { L('ERROR: init first'); return; }
+      if (!buffer) { L('ERROR: load first'); return; }
+
+      // Re-warmup on tap
+      const silent = ctx.createBuffer(1, 1, ctx.sampleRate);
+      const ws = ctx.createBufferSource();
+      ws.buffer = silent;
+      ws.connect(ctx.destination);
+      ws.start(0);
+
+      ctx.resume();
+      L(`PLAY tapped. ctx.state=${ctx.state} currentTime=${ctx.currentTime.toFixed(3)}`);
+
+      try {
+        if (src) { try { src.stop(); } catch(e) {} }
+        src = ctx.createBufferSource();
+        src.buffer = buffer;
+        src.connect(gainNode);
+        src.start(0);
+        src.onended = () => L(`onended fired. ctx.state=${ctx.state}`);
+        L(`src.start(0) called. ctx.state=${ctx.state} currentTime=${ctx.currentTime.toFixed(3)}`);
+      } catch(e) {
+        L(`PLAY ERROR: ${e}`);
+      }
+    });
+
+    // ── Stop ──────────────────────────────────────────────────────────────────
+    document.getElementById('btn-stop').addEventListener('click', () => {
+      if (src) {
+        try { src.stop(); L('stopped'); }
+        catch(e) { L(`stop error: ${e}`); }
+      }
+    });
+
+    L(`UA: ${navigator.userAgent}`);
+    L(`AudioContext: ${'AudioContext' in window ? 'yes' : 'no'}`);
+    L(`webkitAudioContext: ${'webkitAudioContext' in window ? 'yes' : 'no'}`);
+  </script>
+</body>
+</html>
