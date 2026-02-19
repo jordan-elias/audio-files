@@ -165,11 +165,11 @@
       { label: '8', file: 'audio/00 - audio - 8.mp3' },
     ];
 
-    const FADE_IN  = 0.06;  // seconds
-    const FADE_OUT = 0.08;
+    const FADE_IN  = 0.04;  // seconds — short enough to feel instant
+    const FADE_OUT = 0.04;  // kept brief so switching feels snappy
     const MIN_GAIN = 0.0001;
 
-    // ── Web Audio (just for gain/fades — audio element drives decoding) ───────
+    // ── Web Audio for gain/fades only ─────────────────────────────────────────
     const AudioCtx  = window.AudioContext || window.webkitAudioContext;
     const ctx       = new AudioCtx();
     const player    = document.getElementById('player');
@@ -179,10 +179,29 @@
     gainNode.connect(ctx.destination);
     gainNode.gain.setValueAtTime(1, ctx.currentTime);
 
+    // ── Blob URL cache (populated on page load) ───────────────────────────────
+    const blobURLs = {};  // file -> blob: URL
+
+    // Fetch all clips in parallel immediately on page load and store as blob
+    // URLs so every subsequent tap is instant — no network round trip.
+    async function preloadAll() {
+      await Promise.all(clips.map(async ({ file }) => {
+        try {
+          const res  = await fetch(file);
+          const blob = await res.blob();
+          blobURLs[file] = URL.createObjectURL(blob);
+        } catch(e) {
+          console.warn('Preload failed:', file, e);
+          blobURLs[file] = file; // fall back to original path
+        }
+      }));
+    }
+    preloadAll();
+
     // ── State ─────────────────────────────────────────────────────────────────
-    let currentFile  = null;
-    let fadeTimer    = null;
-    let progressRaf  = null;
+    let currentFile = null;
+    let fadeTimer   = null;
+    let progressRaf = null;
 
     // ── UI refs ───────────────────────────────────────────────────────────────
     const btnPlayPause = document.getElementById('btn-play-pause');
@@ -219,10 +238,10 @@
       gainNode.gain.cancelScheduledValues(now);
       gainNode.gain.setValueAtTime(Math.max(gainNode.gain.value, MIN_GAIN), now);
       gainNode.gain.exponentialRampToValueAtTime(MIN_GAIN, now + FADE_OUT);
-      fadeTimer = setTimeout(() => { fadeTimer = null; cb && cb(); }, FADE_OUT * 1000 + 30);
+      fadeTimer = setTimeout(() => { fadeTimer = null; cb && cb(); }, FADE_OUT * 1000 + 20);
     }
 
-    // ── Natural end-of-clip fade via timeupdate ───────────────────────────────
+    // ── Natural end-of-clip fade ──────────────────────────────────────────────
     player.addEventListener('timeupdate', () => {
       if (!player.duration) return;
       const remaining = player.duration - player.currentTime;
@@ -248,8 +267,6 @@
     // ── Clip tap ──────────────────────────────────────────────────────────────
     function onClipTap(file, label, li) {
       ctx.resume();
-
-      // Cancel any in-progress fade/switch immediately
       if (fadeTimer) { clearTimeout(fadeTimer); fadeTimer = null; }
 
       document.querySelectorAll('#clip-list li').forEach(el => el.classList.remove('active'));
@@ -258,7 +275,10 @@
       btnStop.disabled = false;
       btnPlayPause.disabled = false;
 
-      // Always: fade out whatever is playing, then load and play the new clip
+      // Use preloaded blob URL if ready, otherwise fall back to original path
+      const src = blobURLs[file] || file;
+
+      // Fade out current audio, then immediately switch to new clip
       const now = ctx.currentTime;
       gainNode.gain.cancelScheduledValues(now);
       gainNode.gain.setValueAtTime(Math.max(gainNode.gain.value, MIN_GAIN), now);
@@ -268,13 +288,13 @@
         fadeTimer = null;
         player.pause();
         currentFile = file;
-        player.src = file;
-        player.load();
+        player.src = src;
+        // No player.load() — let play() trigger loading; avoids extra round-trip delay
         player.play().catch(() => {});
         fadeIn();
         startProgress();
         showPause();
-      }, FADE_OUT * 1000 + 30);
+      }, FADE_OUT * 1000 + 20);
     }
 
     // ── Play/Pause ────────────────────────────────────────────────────────────
@@ -283,7 +303,6 @@
       if (!player.paused) {
         fadeOutThen(() => player.pause());
         stopProgressRaf();
-        // Hold bar at current position
         if (player.duration) {
           progressBar.style.width = (player.currentTime / player.duration * 100) + '%';
         }
@@ -299,10 +318,7 @@
     // ── Stop ──────────────────────────────────────────────────────────────────
     btnStop.addEventListener('click', () => {
       ctx.resume();
-      fadeOutThen(() => {
-        player.pause();
-        player.currentTime = 0;
-      });
+      fadeOutThen(() => { player.pause(); player.currentTime = 0; });
       stopProgress();
       currentFile = null;
       nowPlaying.textContent = '';
