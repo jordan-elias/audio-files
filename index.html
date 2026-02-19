@@ -3,57 +3,125 @@
 <head>
   <meta charset="UTF-8" />
   <title>Audio Clips</title>
+
+  <!-- Mobile viewport -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     body {
-      font-family: system-ui, sans-serif;
-      max-width: 600px;
-      margin: 40px auto;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      margin: 0;
+      background: #fafafa;
+      color: #111;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Sticky header */
+    .header {
+      position: sticky;
+      top: 0;
+      background: white;
+      z-index: 10;
+      padding: 12px 14px 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    }
+
+    h1 {
+      font-size: 1.1rem;
+      margin: 0 0 8px 0;
+      text-align: center;
+    }
+
+    audio {
+      width: 100%;
+    }
+
+    /* Scroll container */
+    .list-container {
+      flex: 1;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 10px 14px 24px;
     }
 
     ul {
       list-style: none;
       padding: 0;
+      margin: 0;
     }
 
     li {
+      padding: 14px 12px;
+      margin-bottom: 8px;
+      background: white;
+      border-radius: 8px;
+      border: 1px solid #eee;
       cursor: pointer;
-      padding: 8px 0;
-      border-bottom: 1px solid #eee;
+      transition: background 0.15s ease, transform 0.05s ease;
+      font-size: 1rem;
+      text-align: center;
+      user-select: none;
+    }
+
+    li:active {
+      transform: scale(0.98);
+      background: #f0f0f0;
     }
 
     li:hover {
-      text-decoration: underline;
+      background: #f7f7f7;
+    }
+
+    /* Desktop enhancement */
+    @media (min-width: 700px) {
+      body {
+        max-width: 600px;
+        margin: 0 auto;
+        border-left: 1px solid #eee;
+        border-right: 1px solid #eee;
+      }
     }
   </style>
 </head>
+
 <body>
 
-  <h1>Audio Clips</h1>
+  <div class="header">
+    <h1>Audio Clips</h1>
+    <audio id="player" controls>
+      Your browser does not support the audio element.
+    </audio>
+  </div>
 
-  <audio id="player" controls style="width: 100%; margin-bottom: 20px;">
-    Your browser does not support the audio element.
-  </audio>
-
-  <ul>
-    <li onclick="playClip('audio/1.wav')">1</li>
-    <li onclick="playClip('audio/2.wav')">2</li>
-    <li onclick="playClip('audio/3.wav')">3</li>
-    <li onclick="playClip('audio/4.wav')">4</li>
-    <li onclick="playClip('audio/5.wav')">5</li>
-    <li onclick="playClip('audio/6.wav')">6</li>
-    <li onclick="playClip('audio/7.wav')">7</li>
-    <li onclick="playClip('audio/8.wav')">8</li>
-  </ul>
+  <div class="list-container">
+    <ul>
+      <li onclick="playClip('audio/1.wav')">Clip 1</li>
+      <li onclick="playClip('audio/2.wav')">Clip 2</li>
+      <li onclick="playClip('audio/3.wav')">Clip 3</li>
+      <li onclick="playClip('audio/4.wav')">Clip 4</li>
+      <li onclick="playClip('audio/5.wav')">Clip 5</li>
+      <li onclick="playClip('audio/6.wav')">Clip 6</li>
+      <li onclick="playClip('audio/7.wav')">Clip 7</li>
+      <li onclick="playClip('audio/8.wav')">Clip 8</li>
+    </ul>
+  </div>
 
   <script>
     const player = document.getElementById('player');
 
     function playClip(src) {
-      player.src = src;
+      if (player.src !== src) {
+        player.src = src;
+      }
       player.play();
     }
   </script>
 
 </body>
 </html>
-
