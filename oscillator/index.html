@@ -6,50 +6,48 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
 <style>
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
-body {
+html, body {
+  height: 100%;
+  overflow: hidden;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   background: #000;
   color: #111;
-  min-height: 100vh;
+}
+
+body {
   display: flex;
   flex-direction: column;
 }
 
 .header {
-  position: sticky;
-  top: 0;
   background: white;
-  z-index: 10;
-  padding: 12px 14px 0;
+  padding: 12px 14px;
   box-shadow: 0 2px 6px rgba(0,0,0,0.08);
 }
 
 h1 {
   font-size: 1.1rem;
-  margin-bottom: 10px;
   text-align: center;
+  margin-bottom: 10px;
 }
 
 .controls {
   display: flex;
-  align-items: center;
   gap: 8px;
-  margin-bottom: 10px;
+  justify-content: center;
 }
 
 .btn {
+  width: 48px;
+  height: 40px;
   border: 1px solid #111;
   background: #111;
   color: white;
-  width: 44px;
-  height: 38px;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  -webkit-tap-highlight-color: transparent;
+  font-size: 16px;
   touch-action: manipulation;
 }
 
@@ -58,28 +56,45 @@ h1 {
   color: #111;
 }
 
-.btn:disabled {
-  opacity: 0.35;
+.btn.on {
+  background: white;
+  color: #111;
+}
+
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 14px 14px;
 }
 
 .section {
   background: white;
-  margin: 10px 14px;
   border: 1px solid #eee;
-  padding: 14px;
 }
 
-.section-title {
-  font-size: 0.9rem;
-  margin-bottom: 12px;
+.section-header {
+  padding: 12px;
   text-align: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.section-content {
+  display: none;
+  padding: 12px;
+}
+
+.section.open .section-content {
+  display: block;
 }
 
 .param-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 14px;
+  gap: 6px;
+  margin-bottom: 10px;
 }
 
 .param-label {
@@ -96,11 +111,16 @@ h1 {
   height: 34px;
   border: 1px solid #111;
   text-align: center;
-  font-size: 0.9rem;
+}
+
+select {
+  height: 34px;
+  border: 1px solid #111;
+  width: 100%;
 }
 
 .toggle {
-  width: 60px;
+  width: 70px;
   height: 34px;
   border: 1px solid #111;
   background: #111;
@@ -124,15 +144,10 @@ h1 {
   gap: 20px;
 }
 
-#overlay h2 {
-  color: white;
-}
-
-#overlay-btn {
-  background: white;
-  color: #111;
-  padding: 14px 32px;
+#overlay button {
+  padding: 14px 28px;
   border: none;
+  background: white;
   cursor: pointer;
 }
 
@@ -144,14 +159,15 @@ h1 {
     border-right: 1px solid #eee;
   }
 }
+
 </style>
 </head>
 
 <body>
 
 <div id="overlay">
-  <h2>Oscillator</h2>
-  <button id="overlay-btn">Tap to start</button>
+<h2 style="color:white;">Oscillator</h2>
+<button id="overlay-btn">Tap to start</button>
 </div>
 
 <div class="header">
@@ -160,11 +176,11 @@ h1 {
 
 <div class="controls">
 
-<button class="btn" id="btn-play">
+<button id="btn-play" class="btn">
 ▶
 </button>
 
-<button class="btn" id="btn-stop">
+<button id="btn-stop" class="btn">
 ■
 </button>
 
@@ -172,31 +188,31 @@ h1 {
 
 </div>
 
+<div class="main">
+
 <div class="section">
 
-<div class="section-title">
+<div class="section-header">
 Frequency
 </div>
 
+<div class="section-content" style="display:block;">
+
 <div class="param-row">
 
-<button class="btn" id="freq-minus">
-−
-</button>
+<button id="freq-minus" class="btn">−</button>
 
 <input
 id="freq-slider"
-class="param-slider"
 type="range"
+class="param-slider"
 min="20"
 max="2000"
 step="1"
 value="440"
 />
 
-<button class="btn" id="freq-plus">
-+
-</button>
+<button id="freq-plus" class="btn">+</button>
 
 <input
 id="freq-input"
@@ -212,11 +228,47 @@ value="440"
 
 </div>
 
+</div>
+
 <div class="section">
 
-<div class="section-title">
+<div class="section-header">
+Waveform
+</div>
+
+<div class="section-content">
+
+<select id="waveform">
+
+<option value="sine">
+Sine
+</option>
+
+<option value="square">
+Square
+</option>
+
+<option value="triangle">
+Triangle
+</option>
+
+<option value="sawtooth">
+Sawtooth
+</option>
+
+</select>
+
+</div>
+
+</div>
+
+<div class="section">
+
+<div class="section-header">
 EQ
 </div>
+
+<div class="section-content">
 
 <div class="param-row">
 
@@ -224,33 +276,9 @@ EQ
 Low
 </div>
 
-<button class="btn" data-param="low" data-step="-0.5">
-−
-</button>
+<input id="eq-low" type="range" min="-12" max="12" step="0.1" class="param-slider" value="0">
 
-<input
-type="range"
-id="eq-low"
-class="param-slider"
-min="-12"
-max="12"
-step="0.1"
-value="0"
-/>
-
-<button class="btn" data-param="low" data-step="0.5">
-+
-</button>
-
-<input
-id="eq-low-input"
-class="number-input"
-type="number"
-min="-12"
-max="12"
-step="0.1"
-value="0"
-/>
+<input id="eq-low-input" type="number" min="-12" max="12" step="0.1" class="number-input" value="0">
 
 </div>
 
@@ -260,33 +288,9 @@ value="0"
 Mid
 </div>
 
-<button class="btn" data-param="mid" data-step="-0.5">
-−
-</button>
+<input id="eq-mid" type="range" min="-12" max="12" step="0.1" class="param-slider" value="0">
 
-<input
-type="range"
-id="eq-mid"
-class="param-slider"
-min="-12"
-max="12"
-step="0.1"
-value="0"
-/>
-
-<button class="btn" data-param="mid" data-step="0.5">
-+
-</button>
-
-<input
-id="eq-mid-input"
-class="number-input"
-type="number"
-min="-12"
-max="12"
-step="0.1"
-value="0"
-/>
+<input id="eq-mid-input" type="number" min="-12" max="12" step="0.1" class="number-input" value="0">
 
 </div>
 
@@ -296,33 +300,11 @@ value="0"
 High
 </div>
 
-<button class="btn" data-param="high" data-step="-0.5">
-−
-</button>
+<input id="eq-high" type="range" min="-12" max="12" step="0.1" class="param-slider" value="0">
 
-<input
-type="range"
-id="eq-high"
-class="param-slider"
-min="-12"
-max="12"
-step="0.1"
-value="0"
-/>
+<input id="eq-high-input" type="number" min="-12" max="12" step="0.1" class="number-input" value="0">
 
-<button class="btn" data-param="high" data-step="0.5">
-+
-</button>
-
-<input
-id="eq-high-input"
-class="number-input"
-type="number"
-min="-12"
-max="12"
-step="0.1"
-value="0"
-/>
+</div>
 
 </div>
 
@@ -330,9 +312,11 @@ value="0"
 
 <div class="section">
 
-<div class="section-title">
+<div class="section-header">
 LFO
 </div>
+
+<div class="section-content">
 
 <div class="param-row">
 
@@ -352,33 +336,9 @@ OFF
 Rate
 </div>
 
-<button class="btn" id="lfo-rate-minus">
-−
-</button>
+<input id="lfo-rate" type="range" min="0.1" max="20" step="0.1" class="param-slider" value="5">
 
-<input
-id="lfo-rate"
-type="range"
-class="param-slider"
-min="0.1"
-max="20"
-step="0.1"
-value="5"
-/>
-
-<button class="btn" id="lfo-rate-plus">
-+
-</button>
-
-<input
-id="lfo-rate-input"
-class="number-input"
-type="number"
-min="0.1"
-max="20"
-step="0.1"
-value="5"
-/>
+<input id="lfo-rate-input" type="number" min="0.1" max="20" step="0.1" class="number-input" value="5">
 
 </div>
 
@@ -388,33 +348,49 @@ value="5"
 Depth
 </div>
 
-<button class="btn" id="lfo-depth-minus">
-−
-</button>
+<input id="lfo-depth" type="range" min="0" max="200" step="1" class="param-slider" value="50">
 
-<input
-id="lfo-depth"
-type="range"
-class="param-slider"
-min="0"
-max="200"
-step="1"
-value="50"
-/>
+<input id="lfo-depth-input" type="number" min="0" max="200" step="1" class="number-input" value="50">
 
-<button class="btn" id="lfo-depth-plus">
-+
-</button>
+</div>
 
-<input
-id="lfo-depth-input"
-class="number-input"
-type="number"
-min="0"
-max="200"
-step="1"
-value="50"
-/>
+</div>
+
+</div>
+
+<div class="section">
+
+<div class="section-header">
+Effects
+</div>
+
+<div class="section-content">
+
+<div class="param-row">
+
+<div class="param-label">
+Reverb
+</div>
+
+<input id="reverb-mix" type="range" min="0" max="1" step="0.01" class="param-slider" value="0">
+
+<input id="reverb-input" type="number" min="0" max="1" step="0.01" class="number-input" value="0">
+
+</div>
+
+<div class="param-row">
+
+<div class="param-label">
+Delay
+</div>
+
+<input id="delay-time" type="range" min="0" max="1" step="0.01" class="param-slider" value="0">
+
+<input id="delay-input" type="number" min="0" max="1" step="0.01" class="number-input" value="0">
+
+</div>
+
+</div>
 
 </div>
 
@@ -423,8 +399,8 @@ value="50"
 <script>
 
 const AudioCtx =
-  window.AudioContext ||
-  window.webkitAudioContext
+window.AudioContext ||
+window.webkitAudioContext
 
 const ctx = new AudioCtx()
 
@@ -438,381 +414,458 @@ let highFilter
 let lfo
 let lfoGain
 
+let delayNode
+let delayGain
+
+let convolver
+let reverbGain
+
 let playing = false
 let lfoEnabled = false
 
-function warmup() {
+function warmup(){
 
-  ctx.resume()
+ctx.resume()
 
-  const silent =
-    ctx.createBuffer(
-      1,
-      1,
-      ctx.sampleRate
-    )
+const silent =
+ctx.createBuffer(1,1,ctx.sampleRate)
 
-  const src =
-    ctx.createBufferSource()
+const src =
+ctx.createBufferSource()
 
-  src.buffer = silent
-  src.connect(ctx.destination)
-  src.start(0)
+src.buffer = silent
+src.connect(ctx.destination)
+src.start()
 
 }
 
-document
-.getElementById("overlay-btn")
-.addEventListener("click", () => {
+document.getElementById("overlay-btn")
+.addEventListener("click",()=>{
 
-  warmup()
+warmup()
 
-  document
-  .getElementById("overlay")
-  .style.display = "none"
+document.getElementById("overlay")
+.style.display="none"
 
 })
 
-function createGraph() {
+function impulseResponse(){
 
-  osc = ctx.createOscillator()
-  osc.type = "sine"
+const length =
+ctx.sampleRate * 2
 
-  masterGain = ctx.createGain()
-  masterGain.gain.value = 0.5
+const buffer =
+ctx.createBuffer(
+2,
+length,
+ctx.sampleRate
+)
 
-  lowFilter =
-    ctx.createBiquadFilter()
+for(let c=0;c<2;c++){
 
-  lowFilter.type =
-    "lowshelf"
+const data =
+buffer.getChannelData(c)
 
-  lowFilter.frequency.value =
-    200
+for(let i=0;i<length;i++){
 
-  midFilter =
-    ctx.createBiquadFilter()
-
-  midFilter.type =
-    "peaking"
-
-  midFilter.frequency.value =
-    1000
-
-  midFilter.Q.value = 1
-
-  highFilter =
-    ctx.createBiquadFilter()
-
-  highFilter.type =
-    "highshelf"
-
-  highFilter.frequency.value =
-    3000
-
-  osc
-    .connect(lowFilter)
-
-  lowFilter
-    .connect(midFilter)
-
-  midFilter
-    .connect(highFilter)
-
-  highFilter
-    .connect(masterGain)
-
-  masterGain
-    .connect(ctx.destination)
-
-  lfo =
-    ctx.createOscillator()
-
-  lfo.type = "sine"
-
-  lfoGain =
-    ctx.createGain()
-
-  lfoGain.gain.value =
-    50
-
-  lfo
-    .connect(lfoGain)
+data[i] =
+(Math.random()*2-1)
+*
+Math.pow(
+1-i/length,
+2
+)
 
 }
 
-function startOsc() {
+}
 
-  if (playing)
-    return
-
-  warmup()
-
-  createGraph()
-
-  const freq =
-    Number(
-      freqInput.value
-    )
-
-  osc.frequency.value =
-    freq
-
-  if (lfoEnabled) {
-
-    lfoGain
-      .connect(
-        osc.frequency
-      )
-
-    lfo.start()
-
-  }
-
-  osc.start()
-
-  playing = true
+return buffer
 
 }
 
-function stopOsc() {
+function createGraph(){
 
-  if (!playing)
-    return
+osc =
+ctx.createOscillator()
 
-  const now =
-    ctx.currentTime
+osc.type =
+waveform.value
 
-  masterGain.gain
-    .setTargetAtTime(
-      0,
-      now,
-      0.02
-    )
+masterGain =
+ctx.createGain()
 
-  setTimeout(() => {
+masterGain.gain.value =
+0.5
 
-    try {
-      osc.stop()
-    } catch {}
+lowFilter =
+ctx.createBiquadFilter()
 
-    if (lfoEnabled) {
+lowFilter.type =
+"lowshelf"
 
-      try {
-        lfo.stop()
-      } catch {}
+lowFilter.frequency.value =
+200
 
-    }
+midFilter =
+ctx.createBiquadFilter()
 
-    playing = false
+midFilter.type =
+"peaking"
 
-  }, 50)
+midFilter.frequency.value =
+1000
+
+midFilter.Q.value =
+1
+
+highFilter =
+ctx.createBiquadFilter()
+
+highFilter.type =
+"highshelf"
+
+highFilter.frequency.value =
+3000
+
+delayNode =
+ctx.createDelay()
+
+delayGain =
+ctx.createGain()
+
+delayGain.gain.value =
+0
+
+convolver =
+ctx.createConvolver()
+
+convolver.buffer =
+impulseResponse()
+
+reverbGain =
+ctx.createGain()
+
+reverbGain.gain.value =
+0
+
+osc
+.connect(lowFilter)
+
+lowFilter
+.connect(midFilter)
+
+midFilter
+.connect(highFilter)
+
+highFilter
+.connect(masterGain)
+
+masterGain
+.connect(ctx.destination)
+
+masterGain
+.connect(delayNode)
+
+delayNode
+.connect(delayGain)
+
+delayGain
+.connect(masterGain)
+
+masterGain
+.connect(convolver)
+
+convolver
+.connect(reverbGain)
+
+reverbGain
+.connect(masterGain)
+
+lfo =
+ctx.createOscillator()
+
+lfo.type =
+"sine"
+
+lfoGain =
+ctx.createGain()
+
+lfo.connect(lfoGain)
+
+}
+
+function startOsc(){
+
+if(playing)
+return
+
+warmup()
+
+createGraph()
+
+osc.frequency.value =
+Number(freqInput.value)
+
+if(lfoEnabled){
+
+lfoGain.connect(
+osc.frequency
+)
+
+lfo.start()
+
+}
+
+osc.start()
+
+btnPlay.classList.add("on")
+
+playing = true
+
+}
+
+function stopOsc(){
+
+if(!playing)
+return
+
+const now =
+ctx.currentTime
+
+masterGain.gain
+.setTargetAtTime(
+0,
+now,
+0.02
+)
+
+setTimeout(()=>{
+
+try{
+osc.stop()
+}catch{}
+
+if(lfoEnabled){
+
+try{
+lfo.stop()
+}catch{}
+
+}
+
+btnPlay.classList.remove("on")
+
+playing = false
+
+},60)
+
+}
+
+const btnPlay =
+document.getElementById("btn-play")
+
+const btnStop =
+document.getElementById("btn-stop")
+
+btnPlay.addEventListener(
+"click",
+startOsc
+)
+
+btnStop.addEventListener(
+"click",
+()=>{
+
+btnStop.classList.add("on")
+
+setTimeout(()=>{
+btnStop.classList.remove("on")
+},120)
+
+stopOsc()
+
+}
+)
+
+function setFrequency(v){
+
+v =
+Math.min(
+2000,
+Math.max(
+20,
+Number(v)
+)
+)
+
+freqSlider.value = v
+freqInput.value = v
+
+if(osc){
+
+osc.frequency
+.setTargetAtTime(
+v,
+ctx.currentTime,
+0.01
+)
+
+}
 
 }
 
 const freqSlider =
-  document.getElementById(
-    "freq-slider"
-  )
+document.getElementById("freq-slider")
 
 const freqInput =
-  document.getElementById(
-    "freq-input"
-  )
+document.getElementById("freq-input")
 
-function setFrequency(v) {
+freqSlider.addEventListener(
+"input",
+e=>setFrequency(
+e.target.value
+)
+)
 
-  v =
-    Math.min(
-      2000,
-      Math.max(
-        20,
-        Number(v)
-      )
-    )
+freqInput.addEventListener(
+"change",
+e=>setFrequency(
+e.target.value
+)
+)
 
-  freqSlider.value = v
-  freqInput.value = v
+document.getElementById("freq-minus")
+.onclick=()=>setFrequency(
+Number(freqInput.value)-1
+)
 
-  if (osc) {
+document.getElementById("freq-plus")
+.onclick=()=>setFrequency(
+Number(freqInput.value)+1
+)
 
-    osc.frequency
-      .setTargetAtTime(
-        v,
-        ctx.currentTime,
-        0.01
-      )
+waveform.addEventListener(
+"change",
+()=>{
 
-  }
+if(osc){
+
+osc.type =
+waveform.value
 
 }
 
-freqSlider
-.addEventListener(
-  "input",
-  e =>
-    setFrequency(
-      e.target.value
-    )
+}
 )
 
-freqInput
-.addEventListener(
-  "change",
-  e =>
-    setFrequency(
-      e.target.value
-    )
+function bindEQ(slider,input,node){
+
+function set(v){
+
+v =
+Math.min(
+12,
+Math.max(
+-12,
+Number(v)
+)
 )
 
-document
-.getElementById(
-  "freq-minus"
-)
-.addEventListener(
-  "click",
-  () =>
-    setFrequency(
-      Number(
-        freqInput.value
-      ) - 1
-    )
+slider.value=v
+input.value=v
+
+if(node){
+
+node.gain
+.setTargetAtTime(
+v,
+ctx.currentTime,
+0.01
 )
 
-document
-.getElementById(
-  "freq-plus"
-)
-.addEventListener(
-  "click",
-  () =>
-    setFrequency(
-      Number(
-        freqInput.value
-      ) + 1
-    )
+}
+
+}
+
+slider.addEventListener(
+"input",
+e=>set(e.target.value)
 )
 
-function bindEQ(
-  sliderId,
-  inputId,
-  node
-) {
-
-  const s =
-    document.getElementById(
-      sliderId
-    )
-
-  const i =
-    document.getElementById(
-      inputId
-    )
-
-  function set(v) {
-
-    v =
-      Math.min(
-        12,
-        Math.max(
-          -12,
-          Number(v)
-        )
-      )
-
-    s.value = v
-    i.value = v
-
-    if (node)
-      node.gain
-        .setTargetAtTime(
-          v,
-          ctx.currentTime,
-          0.01
-        )
-
-  }
-
-  s.addEventListener(
-    "input",
-    e =>
-      set(
-        e.target.value
-      )
-  )
-
-  i.addEventListener(
-    "change",
-    e =>
-      set(
-        e.target.value
-      )
-  )
+input.addEventListener(
+"change",
+e=>set(e.target.value)
+)
 
 }
 
 bindEQ(
-  "eq-low",
-  "eq-low-input",
-  lowFilter
+eqLow,
+eqLowInput,
+lowFilter
 )
 
 bindEQ(
-  "eq-mid",
-  "eq-mid-input",
-  midFilter
+eqMid,
+eqMidInput,
+midFilter
 )
 
 bindEQ(
-  "eq-high",
-  "eq-high-input",
-  highFilter
+eqHigh,
+eqHighInput,
+highFilter
+)
+
+document.getElementById("lfo-toggle")
+.addEventListener(
+"click",
+e=>{
+
+lfoEnabled =
+!lfoEnabled
+
+e.target.textContent =
+lfoEnabled
+? "ON"
+: "OFF"
+
+e.target.classList
+.toggle(
+"off",
+!lfoEnabled
+)
+
+}
 )
 
 document
-.getElementById(
-  "lfo-toggle"
+.querySelectorAll(
+".section-header"
 )
-.addEventListener(
-  "click",
-  e => {
+.forEach(h=>{
 
-    lfoEnabled =
-      !lfoEnabled
+h.addEventListener(
+"click",
+()=>{
 
-    e.target.textContent =
-      lfoEnabled
-        ? "ON"
-        : "OFF"
+h.parentElement
+.classList
+.toggle("open")
 
-    e.target.classList
-      .toggle(
-        "off",
-        !lfoEnabled
-      )
-
-  }
+}
 )
 
-document
-.getElementById(
-  "btn-play"
-)
-.addEventListener(
-  "click",
-  startOsc
-)
-
-document
-.getElementById(
-  "btn-stop"
-)
-.addEventListener(
-  "click",
-  stopOsc
-)
+})
 
 </script>
+
+  <footer class="site-footer">
+  <a href="https://jordanelias.de" target="_blank" rel="noopener">
+    jordanelias.de
+  </a>
+</footer>
 
 </body>
 </html>
