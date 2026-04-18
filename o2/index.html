@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Oscillator</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  overflow-x: hidden;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #000;
+  color: #111;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header & Master Controls */
+.header {
+  background: white;
+  padding: 12px 14px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  z-index: 10;
+}
+
+h1 {
+  font-size: 1.1rem;
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.controls {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  align-items: center;
+}
+
+.volume-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  max-width: 200px;
+}
+
+.btn {
+  width: 48px;
+  height: 40px;
+  border: 1px solid #111;
+  background: #111;
+  color: white;
+  cursor: pointer;
+  font-size: 16px;
+  touch-action: manipulation;
+}
+
+.btn:active { background: white; color: #111; }
+.btn.on { background: #444; border-color: #444; }
+
+/* Layout */
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  overflow-y: auto;
+}
+
+.section {
+  background: white;
+  border: 1px solid #eee;
+  border-radius: 4px;
+}
+
+.section-header {
+  padding: 14px;
+  text-align: center;
+  cursor: pointer;
+  user-select: none;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
+}
+
+.section-content {
+  display: none;
+  padding: 12px;
+  border-top: 1px solid #f9f9f9;
+}
+
+.section.open .section-content {
+  display: block;
+}
+
+/* Form Elements */
+.param-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.param-label { width: 70px; font-size: 0.85rem; }
+.param-slider { flex: 1; accent-color: #111; }
+
+.number-input {
+  width: 60px;
+  height: 34px;
+  border: 1px solid #111;
+  text-align: center;
+}
+
+select {
+  height: 40px;
+  border: 1px solid #111;
+  width: 100%;
+  padding: 0 8px;
+  background: white;
+}
+
+.toggle {
+  width: 70px;
+  height: 34px;
+  border: 1px solid #111;
+  background: #111;
+  color: white;
+  cursor: pointer;
+}
+
+.toggle.off { background: white; color: #111; }
+
+.site-footer {
+  padding: 20px;
+  text-align: center;
+}
+
+.site-footer a { color: white; text-decoration: none; font-size: 0.8rem; opacity: 0.6; }
+
+@media (min-width: 700px) {
+  body {
+    max-width: 500px;
+    margin: 0 auto;
+    border-left: 1px solid #333;
+    border-right: 1px solid #333;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+  <h1>Oscillator</h1>
+  <div class="controls">
+    <button id="btn-play" class="btn">▶</button>
+    <button id="btn-stop" class="btn">■</button>
+    <div class="volume-container">
+      <span style="font-size: 12px;">VOL</span>
+      <input id="master-vol" type="range" class="param-slider" min="0" max="1" step="0.01" value="0.5">
+    </div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="section">
+    <div class="section-header">Frequency</div>
+    <div class="section-content">
+      <div class="param-row">
+        <button id="freq-minus" class="btn">−</button>
+        <input id="freq-slider" type="range" class="param-slider" min="20" max="2000" step="1" value="440" />
+        <button id="freq-plus" class="btn">+</button>
+        <input id="freq-input" class="number-input" type="number" value="440" />
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">Waveform</div>
+    <div class="section-content">
+      <select id="waveform">
+        <option value="sine">Sine</option>
+        <option value="square">Square</option>
+        <option value="triangle">Triangle</option>
+        <option value="sawtooth">Sawtooth</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">EQ</div>
+    <div class="section-content">
+      <div class="param-row">
+        <div class="param-label">Low</div>
+        <input id="eq-low" type="range" min="-12" max="12" step="0.1" class="param-slider" value="0">
+        <input id="eq-low-input" type="number" class="number-input" value="0">
+      </div>
+      <div class="param-row">
+        <div class="param-label">Mid</div>
+        <input id="eq-mid" type="range" min="-12" max="12" step="0.1" class="param-slider" value="0">
+        <input id="eq-mid-input" type="number" class="number-input" value="0">
+      </div>
+      <div class="param-row">
+        <div class="param-label">High</div>
+        <input id="eq-high" type="range" min="-12" max="12" step="0.1" class="param-slider" value="0">
+        <input id="eq-high-input" type="number" class="number-input" value="0">
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">LFO</div>
+    <div class="section-content">
+      <div class="param-row">
+        <div class="param-label">Enable</div>
+        <button id="lfo-toggle" class="toggle off">OFF</button>
+      </div>
+      <div class="param-row">
+        <div class="param-label">Rate</div>
+        <input id="lfo-rate" type="range" min="0.1" max="20" step="0.1" class="param-slider" value="5">
+      </div>
+      <div class="param-row">
+        <div class="param-label">Depth</div>
+        <input id="lfo-depth" type="range" min="0" max="200" step="1" class="param-slider" value="50">
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">Effects</div>
+    <div class="section-content">
+      <div class="param-row">
+        <div class="param-label">Reverb</div>
+        <input id="reverb-mix" type="range" min="0" max="1" step="0.01" class="param-slider" value="0">
+      </div>
+      <div class="param-row">
+        <div class="param-label">Delay</div>
+        <input id="delay-time" type="range" min="0" max="1" step="0.01" class="param-slider" value="0">
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer class="site-footer">
+  <a href="https://jordanelias.de" target="_blank">jordanelias.de</a>
+</footer>
+
+<script>
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let ctx;
+let osc, masterGain, lowFilter, midFilter, highFilter;
+let lfo, lfoGain, delayNode, delayGain, convolver, reverbGain;
+let playing = false;
+let lfoEnabled = false;
+
+// Initialize Audio Context on first interaction
+function initAudio() {
+    if (!ctx) {
+        ctx = new AudioCtx();
+        createGraph();
+    }
+    if (ctx.state === 'suspended') ctx.resume();
+}
+
+function createGraph() {
+    masterGain = ctx.createGain();
+    masterGain.gain.value = 0; // Start muted for fade-in
+
+    lowFilter = ctx.createBiquadFilter();
+    lowFilter.type = "lowshelf";
+    lowFilter.frequency.value = 200;
+
+    midFilter = ctx.createBiquadFilter();
+    midFilter.type = "peaking";
+    midFilter.frequency.value = 1000;
+
+    highFilter = ctx.createBiquadFilter();
+    highFilter.type = "highshelf";
+    highFilter.frequency.value = 3000;
+
+    delayNode = ctx.createDelay();
+    delayGain = ctx.createGain();
+    delayGain.gain.value = 0;
+
+    convolver = ctx.createConvolver();
+    reverbGain = ctx.createGain();
+    reverbGain.gain.value = 0;
+
+    // Routing
+    lowFilter.connect(midFilter);
+    midFilter.connect(highFilter);
+    highFilter.connect(masterGain);
+    masterGain.connect(ctx.destination);
+    
+    // Effects routing
+    masterGain.connect(delayNode);
+    delayNode.connect(delayGain);
+    delayGain.connect(masterGain);
+}
+
+function startOsc() {
+    initAudio();
+    if (playing) return;
+
+    osc = ctx.createOscillator();
+    osc.type = document.getElementById("waveform").value;
+    osc.frequency.value = Number(document.getElementById("freq-input").value);
+
+    lfoGain = ctx.createGain();
+    lfoGain.gain.value = Number(document.getElementById("lfo-depth").value);
+    
+    lfo = ctx.createOscillator();
+    lfo.frequency.value = Number(document.getElementById("lfo-rate").value);
+    lfo.connect(lfoGain);
+
+    if (lfoEnabled) lfoGain.connect(osc.frequency);
+
+    osc.connect(lowFilter);
+    
+    const now = ctx.currentTime;
+    const vol = document.getElementById("master-vol").value;
+    
+    osc.start();
+    lfo.start();
+    masterGain.gain.setTargetAtTime(vol, now, 0.05); // Fade In
+
+    document.getElementById("btn-play").classList.add("on");
+    playing = true;
+}
+
+function stopOsc() {
+    if (!playing) return;
+    const now = ctx.currentTime;
+    masterGain.gain.setTargetAtTime(0, now, 0.05); // Fade Out
+
+    setTimeout(() => {
+        if (osc) osc.stop();
+        if (lfo) lfo.stop();
+        playing = false;
+        document.getElementById("btn-play").classList.remove("on");
+    }, 150);
+}
+
+// Controls Logic
+document.getElementById("btn-play").onclick = startOsc;
+document.getElementById("btn-stop").onclick = stopOsc;
+
+document.getElementById("master-vol").oninput = (e) => {
+    if (playing && masterGain) {
+        masterGain.gain.setTargetAtTime(e.target.value, ctx.currentTime, 0.02);
+    }
+};
+
+// Frequency handling
+const freqSlider = document.getElementById("freq-slider");
+const freqInput = document.getElementById("freq-input");
+function updateFreq(v) {
+    v = Math.min(2000, Math.max(20, v));
+    freqSlider.value = v;
+    freqInput.value = v;
+    if (osc) osc.frequency.setTargetAtTime(v, ctx.currentTime, 0.01);
+}
+freqSlider.oninput = (e) => updateFreq(e.target.value);
+freqInput.onchange = (e) => updateFreq(e.target.value);
+document.getElementById("freq-minus").onclick = () => updateFreq(Number(freqInput.value) - 10);
+document.getElementById("freq-plus").onclick = () => updateFreq(Number(freqInput.value) + 10);
+
+// Toggle Sections
+document.querySelectorAll(".section-header").forEach(h => {
+    h.onclick = () => h.parentElement.classList.toggle("open");
+});
+
+// LFO Toggle
+document.getElementById("lfo-toggle").onclick = (e) => {
+    lfoEnabled = !lfoEnabled;
+    e.target.textContent = lfoEnabled ? "ON" : "OFF";
+    e.target.classList.toggle("off", !lfoEnabled);
+    if (playing) {
+        if (lfoEnabled) lfoGain.connect(osc.frequency);
+        else lfoGain.disconnect();
+    }
+};
+
+// Waveform
+document.getElementById("waveform").onchange = (e) => {
+    if (osc) osc.type = e.target.value;
+};
+</script>
+</body>
+</html>
