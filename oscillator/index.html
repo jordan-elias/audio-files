@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Oscillator</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #000;
+  color: #111;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  position: sticky;
+  top: 0;
+  background: white;
+  z-index: 10;
+  padding: 12px 14px 0;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+}
+
+h1 {
+  font-size: 1.1rem;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.btn {
+  border: 1px solid #111;
+  background: #111;
+  color: white;
+  width: 44px;
+  height: 38px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.btn:active {
+  background: white;
+  color: #111;
+}
+
+.btn:disabled {
+  opacity: 0.35;
+}
+
+.section {
+  background: white;
+  margin: 10px 14px;
+  border: 1px solid #eee;
+  padding: 14px;
+}
+
+.section-title {
+  font-size: 0.9rem;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.param-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.param-label {
+  width: 70px;
+  font-size: 0.85rem;
+}
+
+.param-slider {
+  flex: 1;
+}
+
+.number-input {
+  width: 70px;
+  height: 34px;
+  border: 1px solid #111;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.toggle {
+  width: 60px;
+  height: 34px;
+  border: 1px solid #111;
+  background: #111;
+  color: white;
+}
+
+.toggle.off {
+  background: white;
+  color: #111;
+}
+
+#overlay {
+  position: fixed;
+  inset: 0;
+  background: #111;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
+
+#overlay h2 {
+  color: white;
+}
+
+#overlay-btn {
+  background: white;
+  color: #111;
+  padding: 14px 32px;
+  border: none;
+  cursor: pointer;
+}
+
+@media (min-width: 700px) {
+  body {
+    max-width: 600px;
+    margin: 0 auto;
+    border-left: 1px solid #eee;
+    border-right: 1px solid #eee;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div id="overlay">
+  <h2>Oscillator</h2>
+  <button id="overlay-btn">Tap to start</button>
+</div>
+
+<div class="header">
+
+<h1>Oscillator</h1>
+
+<div class="controls">
+
+<button class="btn" id="btn-play">
+▶
+</button>
+
+<button class="btn" id="btn-stop">
+■
+</button>
+
+</div>
+
+</div>
+
+<div class="section">
+
+<div class="section-title">
+Frequency
+</div>
+
+<div class="param-row">
+
+<button class="btn" id="freq-minus">
+−
+</button>
+
+<input
+id="freq-slider"
+class="param-slider"
+type="range"
+min="20"
+max="2000"
+step="1"
+value="440"
+/>
+
+<button class="btn" id="freq-plus">
++
+</button>
+
+<input
+id="freq-input"
+class="number-input"
+type="number"
+min="20"
+max="2000"
+step="1"
+value="440"
+/>
+
+</div>
+
+</div>
+
+<div class="section">
+
+<div class="section-title">
+EQ
+</div>
+
+<div class="param-row">
+
+<div class="param-label">
+Low
+</div>
+
+<button class="btn" data-param="low" data-step="-0.5">
+−
+</button>
+
+<input
+type="range"
+id="eq-low"
+class="param-slider"
+min="-12"
+max="12"
+step="0.1"
+value="0"
+/>
+
+<button class="btn" data-param="low" data-step="0.5">
++
+</button>
+
+<input
+id="eq-low-input"
+class="number-input"
+type="number"
+min="-12"
+max="12"
+step="0.1"
+value="0"
+/>
+
+</div>
+
+<div class="param-row">
+
+<div class="param-label">
+Mid
+</div>
+
+<button class="btn" data-param="mid" data-step="-0.5">
+−
+</button>
+
+<input
+type="range"
+id="eq-mid"
+class="param-slider"
+min="-12"
+max="12"
+step="0.1"
+value="0"
+/>
+
+<button class="btn" data-param="mid" data-step="0.5">
++
+</button>
+
+<input
+id="eq-mid-input"
+class="number-input"
+type="number"
+min="-12"
+max="12"
+step="0.1"
+value="0"
+/>
+
+</div>
+
+<div class="param-row">
+
+<div class="param-label">
+High
+</div>
+
+<button class="btn" data-param="high" data-step="-0.5">
+−
+</button>
+
+<input
+type="range"
+id="eq-high"
+class="param-slider"
+min="-12"
+max="12"
+step="0.1"
+value="0"
+/>
+
+<button class="btn" data-param="high" data-step="0.5">
++
+</button>
+
+<input
+id="eq-high-input"
+class="number-input"
+type="number"
+min="-12"
+max="12"
+step="0.1"
+value="0"
+/>
+
+</div>
+
+</div>
+
+<div class="section">
+
+<div class="section-title">
+LFO
+</div>
+
+<div class="param-row">
+
+<div class="param-label">
+Enable
+</div>
+
+<button id="lfo-toggle" class="toggle off">
+OFF
+</button>
+
+</div>
+
+<div class="param-row">
+
+<div class="param-label">
+Rate
+</div>
+
+<button class="btn" id="lfo-rate-minus">
+−
+</button>
+
+<input
+id="lfo-rate"
+type="range"
+class="param-slider"
+min="0.1"
+max="20"
+step="0.1"
+value="5"
+/>
+
+<button class="btn" id="lfo-rate-plus">
++
+</button>
+
+<input
+id="lfo-rate-input"
+class="number-input"
+type="number"
+min="0.1"
+max="20"
+step="0.1"
+value="5"
+/>
+
+</div>
+
+<div class="param-row">
+
+<div class="param-label">
+Depth
+</div>
+
+<button class="btn" id="lfo-depth-minus">
+−
+</button>
+
+<input
+id="lfo-depth"
+type="range"
+class="param-slider"
+min="0"
+max="200"
+step="1"
+value="50"
+/>
+
+<button class="btn" id="lfo-depth-plus">
++
+</button>
+
+<input
+id="lfo-depth-input"
+class="number-input"
+type="number"
+min="0"
+max="200"
+step="1"
+value="50"
+/>
+
+</div>
+
+</div>
+
+<script>
+
+const AudioCtx =
+  window.AudioContext ||
+  window.webkitAudioContext
+
+const ctx = new AudioCtx()
+
+let osc
+let masterGain
+
+let lowFilter
+let midFilter
+let highFilter
+
+let lfo
+let lfoGain
+
+let playing = false
+let lfoEnabled = false
+
+function warmup() {
+
+  ctx.resume()
+
+  const silent =
+    ctx.createBuffer(
+      1,
+      1,
+      ctx.sampleRate
+    )
+
+  const src =
+    ctx.createBufferSource()
+
+  src.buffer = silent
+  src.connect(ctx.destination)
+  src.start(0)
+
+}
+
+document
+.getElementById("overlay-btn")
+.addEventListener("click", () => {
+
+  warmup()
+
+  document
+  .getElementById("overlay")
+  .style.display = "none"
+
+})
+
+function createGraph() {
+
+  osc = ctx.createOscillator()
+  osc.type = "sine"
+
+  masterGain = ctx.createGain()
+  masterGain.gain.value = 0.5
+
+  lowFilter =
+    ctx.createBiquadFilter()
+
+  lowFilter.type =
+    "lowshelf"
+
+  lowFilter.frequency.value =
+    200
+
+  midFilter =
+    ctx.createBiquadFilter()
+
+  midFilter.type =
+    "peaking"
+
+  midFilter.frequency.value =
+    1000
+
+  midFilter.Q.value = 1
+
+  highFilter =
+    ctx.createBiquadFilter()
+
+  highFilter.type =
+    "highshelf"
+
+  highFilter.frequency.value =
+    3000
+
+  osc
+    .connect(lowFilter)
+
+  lowFilter
+    .connect(midFilter)
+
+  midFilter
+    .connect(highFilter)
+
+  highFilter
+    .connect(masterGain)
+
+  masterGain
+    .connect(ctx.destination)
+
+  lfo =
+    ctx.createOscillator()
+
+  lfo.type = "sine"
+
+  lfoGain =
+    ctx.createGain()
+
+  lfoGain.gain.value =
+    50
+
+  lfo
+    .connect(lfoGain)
+
+}
+
+function startOsc() {
+
+  if (playing)
+    return
+
+  warmup()
+
+  createGraph()
+
+  const freq =
+    Number(
+      freqInput.value
+    )
+
+  osc.frequency.value =
+    freq
+
+  if (lfoEnabled) {
+
+    lfoGain
+      .connect(
+        osc.frequency
+      )
+
+    lfo.start()
+
+  }
+
+  osc.start()
+
+  playing = true
+
+}
+
+function stopOsc() {
+
+  if (!playing)
+    return
+
+  const now =
+    ctx.currentTime
+
+  masterGain.gain
+    .setTargetAtTime(
+      0,
+      now,
+      0.02
+    )
+
+  setTimeout(() => {
+
+    try {
+      osc.stop()
+    } catch {}
+
+    if (lfoEnabled) {
+
+      try {
+        lfo.stop()
+      } catch {}
+
+    }
+
+    playing = false
+
+  }, 50)
+
+}
+
+const freqSlider =
+  document.getElementById(
+    "freq-slider"
+  )
+
+const freqInput =
+  document.getElementById(
+    "freq-input"
+  )
+
+function setFrequency(v) {
+
+  v =
+    Math.min(
+      2000,
+      Math.max(
+        20,
+        Number(v)
+      )
+    )
+
+  freqSlider.value = v
+  freqInput.value = v
+
+  if (osc) {
+
+    osc.frequency
+      .setTargetAtTime(
+        v,
+        ctx.currentTime,
+        0.01
+      )
+
+  }
+
+}
+
+freqSlider
+.addEventListener(
+  "input",
+  e =>
+    setFrequency(
+      e.target.value
+    )
+)
+
+freqInput
+.addEventListener(
+  "change",
+  e =>
+    setFrequency(
+      e.target.value
+    )
+)
+
+document
+.getElementById(
+  "freq-minus"
+)
+.addEventListener(
+  "click",
+  () =>
+    setFrequency(
+      Number(
+        freqInput.value
+      ) - 1
+    )
+)
+
+document
+.getElementById(
+  "freq-plus"
+)
+.addEventListener(
+  "click",
+  () =>
+    setFrequency(
+      Number(
+        freqInput.value
+      ) + 1
+    )
+)
+
+function bindEQ(
+  sliderId,
+  inputId,
+  node
+) {
+
+  const s =
+    document.getElementById(
+      sliderId
+    )
+
+  const i =
+    document.getElementById(
+      inputId
+    )
+
+  function set(v) {
+
+    v =
+      Math.min(
+        12,
+        Math.max(
+          -12,
+          Number(v)
+        )
+      )
+
+    s.value = v
+    i.value = v
+
+    if (node)
+      node.gain
+        .setTargetAtTime(
+          v,
+          ctx.currentTime,
+          0.01
+        )
+
+  }
+
+  s.addEventListener(
+    "input",
+    e =>
+      set(
+        e.target.value
+      )
+  )
+
+  i.addEventListener(
+    "change",
+    e =>
+      set(
+        e.target.value
+      )
+  )
+
+}
+
+bindEQ(
+  "eq-low",
+  "eq-low-input",
+  lowFilter
+)
+
+bindEQ(
+  "eq-mid",
+  "eq-mid-input",
+  midFilter
+)
+
+bindEQ(
+  "eq-high",
+  "eq-high-input",
+  highFilter
+)
+
+document
+.getElementById(
+  "lfo-toggle"
+)
+.addEventListener(
+  "click",
+  e => {
+
+    lfoEnabled =
+      !lfoEnabled
+
+    e.target.textContent =
+      lfoEnabled
+        ? "ON"
+        : "OFF"
+
+    e.target.classList
+      .toggle(
+        "off",
+        !lfoEnabled
+      )
+
+  }
+)
+
+document
+.getElementById(
+  "btn-play"
+)
+.addEventListener(
+  "click",
+  startOsc
+)
+
+document
+.getElementById(
+  "btn-stop"
+)
+.addEventListener(
+  "click",
+  stopOsc
+)
+
+</script>
+
+</body>
+</html>
