@@ -18,6 +18,27 @@ html, body {
 
 body { display: flex; flex-direction: column; }
 
+/* Start Screen Overlay */
+#start-screen {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: #000;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+  padding: 40px;
+  text-align: center;
+}
+
+#start-screen p {
+  margin-bottom: 30px;
+  font-size: 1.1rem;
+  line-height: 1.5;
+}
+
 .header {
   background: white;
   padding: 12px 14px;
@@ -53,6 +74,11 @@ h1 { font-size: 1.1rem; text-align: center; margin-bottom: 12px; }
   touch-action: manipulation;
 }
 
+.btn-large {
+  width: auto;
+  padding: 0 30px;
+}
+
 .btn:active { background: white; color: #111; }
 .btn.on { background: #444; border-color: #444; }
 
@@ -71,7 +97,6 @@ h1 { font-size: 1.1rem; text-align: center; margin-bottom: 12px; }
   border-radius: 0px;
 }
 
-/* Frequency section is always visible, no pointer cursor */
 .section-fixed {
   background: white;
   border: 1px solid #eee;
@@ -114,7 +139,7 @@ h1 { font-size: 1.1rem; text-align: center; margin-bottom: 12px; }
   margin-bottom: 10px;
 }
 
-.param-label { width: 70px; font-size: 0.85rem; }
+.param-label { width: 60px; font-size: 0.85rem; }
 .param-slider { flex: 1; accent-color: #111; cursor: pointer; }
 
 .number-input {
@@ -125,7 +150,6 @@ h1 { font-size: 1.1rem; text-align: center; margin-bottom: 12px; }
   font-family: monospace;
 }
 
-/* Custom Waveform Selector Styling */
 .waveform-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -136,6 +160,7 @@ h1 { font-size: 1.1rem; text-align: center; margin-bottom: 12px; }
   padding: 10px;
   border: 1px solid #111;
   background: white;
+  color: #111;
   cursor: pointer;
   font-size: 0.75rem;
   text-transform: uppercase;
@@ -168,6 +193,11 @@ h1 { font-size: 1.1rem; text-align: center; margin-bottom: 12px; }
 </head>
 
 <body>
+
+<div id="start-screen">
+  <p>Please make sure your phone is <strong>not on silent</strong>, and that <strong>Do Not Disturb</strong> is on for the best experience.</p>
+  <button id="entry-btn" class="btn btn-large">START</button>
+</div>
 
 <div class="header">
   <h1>Oscillator</h1>
@@ -207,9 +237,21 @@ h1 { font-size: 1.1rem; text-align: center; margin-bottom: 12px; }
   <div class="section">
     <div class="section-header">EQ</div>
     <div class="section-content">
-      <div class="param-row"><div class="param-label">Low</div><input id="eq-low" type="range" min="-12" max="12" step="0.1" class="param-slider" value="0"></div>
-      <div class="param-row"><div class="param-label">Mid</div><input id="eq-mid" type="range" min="-12" max="12" step="0.1" class="param-slider" value="0"></div>
-      <div class="param-row"><div class="param-label">High</div><input id="eq-high" type="range" min="-12" max="12" step="0.1" class="param-slider" value="0"></div>
+      <div class="param-row">
+        <div class="param-label">Low</div>
+        <input id="eq-low" type="range" min="-12" max="12" step="0.1" class="param-slider" value="0">
+        <input id="eq-low-num" class="number-input" type="number" step="0.1" value="0">
+      </div>
+      <div class="param-row">
+        <div class="param-label">Mid</div>
+        <input id="eq-mid" type="range" min="-12" max="12" step="0.1" class="param-slider" value="0">
+        <input id="eq-mid-num" class="number-input" type="number" step="0.1" value="0">
+      </div>
+      <div class="param-row">
+        <div class="param-label">High</div>
+        <input id="eq-high" type="range" min="-12" max="12" step="0.1" class="param-slider" value="0">
+        <input id="eq-high-num" class="number-input" type="number" step="0.1" value="0">
+      </div>
     </div>
   </div>
 
@@ -220,8 +262,16 @@ h1 { font-size: 1.1rem; text-align: center; margin-bottom: 12px; }
         <div class="param-label">Enable</div>
         <button id="lfo-toggle" class="toggle off">OFF</button>
       </div>
-      <div class="param-row"><div class="param-label">Rate</div><input id="lfo-rate" type="range" min="0.1" max="20" step="0.1" class="param-slider" value="5"></div>
-      <div class="param-row"><div class="param-label">Depth</div><input id="lfo-depth" type="range" min="0" max="1000" step="1" class="param-slider" value="100"></div>
+      <div class="param-row">
+        <div class="param-label">Rate</div>
+        <input id="lfo-rate" type="range" min="0.1" max="20" step="0.1" class="param-slider" value="5">
+        <input id="lfo-rate-num" class="number-input" type="number" step="0.1" value="5">
+      </div>
+      <div class="param-row">
+        <div class="param-label">Depth</div>
+        <input id="lfo-depth" type="range" min="0" max="1000" step="1" class="param-slider" value="100">
+        <input id="lfo-depth-num" class="number-input" type="number" step="1" value="100">
+      </div>
     </div>
   </div>
 
@@ -244,11 +294,16 @@ let playing = false;
 let lfoEnabled = false;
 let currentWaveform = 'sine';
 
+// Entry logic
+document.getElementById("entry-btn").onclick = () => {
+    initAudio();
+    document.getElementById("start-screen").style.display = "none";
+};
+
 function initAudio() {
     if (!ctx) {
         ctx = new (window.AudioContext || window.webkitAudioContext)();
         
-        // Setup Filter Chain
         lowFilter = ctx.createBiquadFilter();
         lowFilter.type = "lowshelf";
         lowFilter.frequency.value = 200;
@@ -268,18 +323,15 @@ function initAudio() {
         masterGain = ctx.createGain();
         masterGain.gain.value = 0;
 
-        // Routing
         lowFilter.connect(midFilter);
         midFilter.connect(highFilter);
         highFilter.connect(masterGain);
         masterGain.connect(ctx.destination);
         
-        // Delay loop
         masterGain.connect(delayNode);
         delayNode.connect(delayGain);
         delayGain.connect(masterGain);
 
-        // LFO setup
         lfo = ctx.createOscillator();
         lfoGain = ctx.createGain();
         lfoGain.gain.value = 0; 
@@ -297,7 +349,6 @@ function startOsc() {
     osc.type = currentWaveform;
     osc.frequency.value = Number(document.getElementById("freq-input").value);
     
-    // Connect LFO to oscillator frequency
     lfoGain.disconnect();
     if (lfoEnabled) lfoGain.connect(osc.frequency);
 
@@ -305,7 +356,7 @@ function startOsc() {
     osc.start();
 
     const vol = document.getElementById("master-vol").value;
-    masterGain.gain.setTargetAtTime(vol, ctx.currentTime, 0.05); // Smooth fade in
+    masterGain.gain.setTargetAtTime(vol, ctx.currentTime, 0.05);
 
     document.getElementById("btn-play").classList.add("on");
     playing = true;
@@ -313,7 +364,7 @@ function startOsc() {
 
 function stopOsc() {
     if (!playing) return;
-    masterGain.gain.setTargetAtTime(0, ctx.currentTime, 0.05); // Smooth fade out
+    masterGain.gain.setTargetAtTime(0, ctx.currentTime, 0.05);
 
     setTimeout(() => {
         if (osc) {
@@ -323,6 +374,21 @@ function stopOsc() {
         playing = false;
         document.getElementById("btn-play").classList.remove("on");
     }, 150);
+}
+
+// Sync function for Sliders & Number inputs
+function syncInputs(sliderId, numId, callback) {
+    const slider = document.getElementById(sliderId);
+    const num = document.getElementById(numId);
+    
+    slider.oninput = (e) => {
+        num.value = e.target.value;
+        callback(e.target.value);
+    };
+    num.oninput = (e) => {
+        slider.value = e.target.value;
+        callback(e.target.value);
+    };
 }
 
 // Frequency Controls
@@ -335,7 +401,7 @@ function updateFreq(v) {
     if (osc) osc.frequency.setTargetAtTime(v, ctx.currentTime, 0.01);
 }
 freqSlider.oninput = (e) => updateFreq(e.target.value);
-freqInput.onchange = (e) => updateFreq(e.target.value);
+freqInput.oninput = (e) => updateFreq(e.target.value);
 document.getElementById("freq-minus").onclick = () => updateFreq(Number(freqInput.value) - 1);
 document.getElementById("freq-plus").onclick = () => updateFreq(Number(freqInput.value) + 1);
 
@@ -349,14 +415,15 @@ document.querySelectorAll('.wave-btn').forEach(btn => {
     };
 });
 
-// Real-time EQ
-document.getElementById("eq-low").oninput = (e) => { if(lowFilter) lowFilter.gain.setTargetAtTime(e.target.value, ctx.currentTime, 0.01); };
-document.getElementById("eq-mid").oninput = (e) => { if(midFilter) midFilter.gain.setTargetAtTime(e.target.value, ctx.currentTime, 0.01); };
-document.getElementById("eq-high").oninput = (e) => { if(highFilter) highFilter.gain.setTargetAtTime(e.target.value, ctx.currentTime, 0.01); };
+// Real-time EQ with sync
+syncInputs("eq-low", "eq-low-num", (val) => { if(lowFilter) lowFilter.gain.setTargetAtTime(val, ctx.currentTime, 0.01); });
+syncInputs("eq-mid", "eq-mid-num", (val) => { if(midFilter) midFilter.gain.setTargetAtTime(val, ctx.currentTime, 0.01); });
+syncInputs("eq-high", "eq-high-num", (val) => { if(highFilter) highFilter.gain.setTargetAtTime(val, ctx.currentTime, 0.01); });
 
-// Real-time LFO
-document.getElementById("lfo-rate").oninput = (e) => { if(lfo) lfo.frequency.setTargetAtTime(e.target.value, ctx.currentTime, 0.01); };
-document.getElementById("lfo-depth").oninput = (e) => { if(lfoGain) lfoGain.gain.setTargetAtTime(e.target.value, ctx.currentTime, 0.01); };
+// Real-time LFO with sync
+syncInputs("lfo-rate", "lfo-rate-num", (val) => { if(lfo) lfo.frequency.setTargetAtTime(val, ctx.currentTime, 0.01); });
+syncInputs("lfo-depth", "lfo-depth-num", (val) => { if(lfoGain) lfoGain.gain.setTargetAtTime(val, ctx.currentTime, 0.01); });
+
 document.getElementById("lfo-toggle").onclick = (e) => {
     lfoEnabled = !lfoEnabled;
     e.target.textContent = lfoEnabled ? "ON" : "OFF";
