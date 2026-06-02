@@ -137,11 +137,12 @@
     .source-revealed { background: var(--text); border-color: var(--text); box-shadow: 0 0 0 3px var(--accent-light); }
 
     @keyframes pulse-string { 0% { box-shadow: 0 0 0 0px rgba(42,92,69,0.6); } 18% { box-shadow: 0 0 0 8px rgba(42,92,69,0.0); } 100% { box-shadow: 0 0 0 0px rgba(42,92,69,0.0); } }
-    @keyframes pulse-pad  { 0%,100% { box-shadow: 0 0 0 0px rgba(26,77,107,0.4); } 50% { box-shadow: 0 0 0 7px rgba(26,77,107,0.0); } }
+    @keyframes pulse-pad  { 0% { box-shadow: 0 0 0 0px rgba(26,77,107,0.5); } 50% { box-shadow: 0 0 0 7px rgba(26,77,107,0.0); } 100% { box-shadow: 0 0 0 0px rgba(26,77,107,0.0); } }
     @keyframes pulse-block { 0% { box-shadow: 0 0 0 0px rgba(92,42,92,0.5); } 14% { box-shadow: 0 0 0 6px rgba(92,42,92,0.0); } 100% { box-shadow: 0 0 0 0px rgba(92,42,92,0.0); } }
-    .pulse-string { animation: pulse-string 800ms ease-out infinite; }
-    .pulse-pad    { animation: pulse-pad    500ms ease-in-out infinite; }
-    .pulse-block  { animation: pulse-block  380ms ease-out infinite; }
+    /* Single-shot: JS re-triggers each class in sync with the audio clock */
+    .pulse-string { animation: pulse-string 700ms ease-out 1 forwards; }
+    .pulse-pad    { animation: pulse-pad    460ms ease-out 1 forwards; }
+    .pulse-block  { animation: pulse-block  340ms ease-out 1 forwards; }
 
     .path-trace { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
     .phase-indicator { font-size: .65rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); text-align: center; margin: .5rem 0; min-height: 1.2em; }
@@ -425,6 +426,9 @@ class ToneSource {
     this.rhythmMs = config.rhythmMs; this.isTarget = config.isTarget;
     this.position = { x: 0, y: 0, z: -1 }; this.resonanceSource = null;
     this._timeoutId = null; this._stopped = true; this._nextNoteTime = 0;
+    // onBeat: called in JS time just before each note fires in the audio engine.
+    // Used to sync the visual pulse with the audio beat.
+    this.onBeat = null;
   }
 
   init() {
@@ -457,6 +461,13 @@ class ToneSource {
     if (this._stopped) return;
     // Play note at the precisely scheduled audio-clock time
     this._playNoteAt(this._nextNoteTime);
+    // Fire the visual beat callback timed to match the audio clock.
+    // The audio engine will play at _nextNoteTime; we convert that to a JS
+    // setTimeout delay so the visual pulse fires at the same perceived moment.
+    if (this.onBeat) {
+      const msUntilBeat = (this._nextNoteTime - this.audioCtx.currentTime) * 1000;
+      setTimeout(() => { if (!this._stopped && this.onBeat) this.onBeat(); }, Math.max(0, msUntilBeat));
+    }
     // Advance the audio clock cursor by one rhythm interval
     this._nextNoteTime += this.rhythmMs / 1000;
     // Wake up 100ms before the next note is due to schedule it
@@ -738,12 +749,29 @@ function drawDots(showTarget, withPulse) {
     const dot = document.createElement('div'); dot.className = 'sound-source'; dot.dataset.idx = i;
     if (showTarget && i === G.targetIndex) dot.classList.add('source-target');
     else dot.classList.add('source-distractor');
-    if (withPulse) dot.classList.add(PULSE_CLASSES[i]);
     diagram.appendChild(dot);
+
+    if (withPulse) {
+      const pulseClass = PULSE_CLASSES[i];
+      // Register onBeat: each time the audio fires, restart the CSS animation
+      // from frame 0 so the visual flash is locked to the audio event.
+      src.onBeat = () => {
+        const d = diagram.querySelector(`.sound-source[data-idx="${i}"]`);
+        if (!d) return;
+        // Remove and force reflow to restart the animation cleanly
+        d.classList.remove(pulseClass);
+        void d.offsetWidth; // trigger reflow
+        d.classList.add(pulseClass);
+      };
+      // Fire immediately so the first beat is visible right away
+      src.onBeat();
+    }
   });
 }
 
 function removePulseClasses() {
+  // Clear all onBeat callbacks so pulses stop firing during the tracking phase
+  G.sources.forEach(src => { src.onBeat = null; });
   diagram.querySelectorAll('.sound-source').forEach(dot => {
     PULSE_CLASSES.forEach(c => dot.classList.remove(c));
   });
