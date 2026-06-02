@@ -423,7 +423,8 @@ class ToneSource {
     this.audioCtx = audioCtx; this.resonanceScene = resonanceScene;
     this.frequency = config.frequency; this.timbre = config.timbre;
     this.rhythmMs = config.rhythmMs; this.isTarget = config.isTarget;
-    this.position = { x: 0, y: 0, z: -1 }; this.resonanceSource = null; this._intervalId = null;
+    this.position = { x: 0, y: 0, z: -1 }; this.resonanceSource = null;
+    this._timeoutId = null; this._stopped = true; this._nextNoteTime = 0;
   }
 
   init() {
@@ -440,8 +441,39 @@ class ToneSource {
     }
   }
 
-  _playNote() {
-    const ctx = this.audioCtx; const now = ctx.currentTime;
+  // FIX (Rhythm timing): use AudioContext clock instead of setInterval.
+  // setInterval drifts under JS load (rAF, DOM updates, awaits). The audio clock
+  // is sample-accurate and independent of the main thread. We schedule each note
+  // at a precise audio-clock time, then use setTimeout with a 100ms lookahead to
+  // wake up just before the next note is due — giving the audio engine time to
+  // queue it in hardware before JS jitter can affect it.
+  startRhythm() {
+    this._stopped = false;
+    this._nextNoteTime = this.audioCtx.currentTime;
+    this._scheduleNext();
+  }
+
+  _scheduleNext() {
+    if (this._stopped) return;
+    // Play note at the precisely scheduled audio-clock time
+    this._playNoteAt(this._nextNoteTime);
+    // Advance the audio clock cursor by one rhythm interval
+    this._nextNoteTime += this.rhythmMs / 1000;
+    // Wake up 100ms before the next note is due to schedule it
+    const msUntilNext = (this._nextNoteTime - this.audioCtx.currentTime) * 1000 - 100;
+    this._timeoutId = setTimeout(() => this._scheduleNext(), Math.max(0, msUntilNext));
+  }
+
+  stopRhythm() {
+    this._stopped = true;
+    if (this._timeoutId !== null) { clearTimeout(this._timeoutId); this._timeoutId = null; }
+  }
+
+  _playNoteAt(startTime) {
+    if (!this.resonanceSource) return;
+    const ctx = this.audioCtx;
+    // Clamp startTime to be no earlier than now, in case of tiny scheduling drift
+    const now = Math.max(startTime, ctx.currentTime);
 
     if (this.timbre === 'string') {
       // FIX (Audio): Karplus-Strong with loopGain < 1 inside feedback path to prevent runaway resonance
@@ -504,8 +536,6 @@ class ToneSource {
     }
   }
 
-  startRhythm() { this._playNote(); this._intervalId = setInterval(() => this._playNote(), this.rhythmMs); }
-  stopRhythm() { if (this._intervalId !== null) { clearInterval(this._intervalId); this._intervalId = null; } }
   setPosition(x, y, z) { this.position = { x, y, z }; if (this.resonanceSource) this.resonanceSource.setPosition(x, y, z); }
 }
 
