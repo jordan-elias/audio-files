@@ -1,0 +1,1871 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Soundscape Machine</title>
+
+  <meta name="robots" content="noindex, nofollow">
+
+  <link rel="icon" type="image/png" href="/images/favicon.png">
+  <link rel="apple-touch-icon" href="/images/favicon.png">
+  <link rel="manifest" href="/site.webmanifest">
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Space+Grotesk:wght@500;600&display=swap" rel="stylesheet">
+
+  <script src="/dashboard/auth-guard.js" type="module"></script>
+
+  <script type="module">
+    import { applyMultipleGating } from '/assets/js/gating.js';
+    applyMultipleGating([
+      { targetSelector: '.transport',        moduleName: 'tape-laboratory' },
+
+      
+    ]);
+  </script>
+
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --font-body:'Inter',sans-serif;
+      --font-heading:'Space Grotesk',sans-serif;
+      --bg:#fff;--surface:#f9f9f7;--border:#e5e5e0;
+      --text:#1a1a1a;--muted:#6b6b6b;
+      --accent:#2a5c45;--accent-light:#edf4f0;--accent-hover:#1e4433;
+      --error:#c0392b;--error-bg:#fdf2f2;
+      --ring:#7b3f9e;--ring-light:#f5eefa;
+    }
+    html{font-size:16px}
+    body{font-family:var(--font-body);color:var(--text);background:var(--bg);
+      min-height:100vh;display:flex;flex-direction:column;}
+
+    /* ── HEADER ── */
+    .sil-header{border-bottom:1px solid var(--border);padding:0 1.5rem;height:56px;
+      display:flex;align-items:center;justify-content:space-between;position:sticky;
+      top:0;background:var(--bg);z-index:100;gap:1rem;width:100%;}
+    .sil-header__wordmark{font-family:var(--font-heading);font-size:1rem;font-weight:600;
+      letter-spacing:-0.01em;white-space:nowrap;flex-shrink:0;text-decoration:none;color:var(--text);}
+    .sil-header__wordmark:hover{color:var(--accent);}
+    .sil-header__nav{display:flex;gap:.25rem;align-items:center;}
+    .sil-header__nav a{font-family:var(--font-body);font-size:.8rem;font-weight:500;
+      text-decoration:none;color:var(--muted);transition:color .15s;white-space:nowrap;padding:.3rem .65rem;}
+    .sil-header__nav a:hover{color:var(--text);}
+    .sil-header__nav a.sil-active{color:var(--accent);font-weight:600;}
+    .sil-header__signout{font-family:var(--font-body);font-size:.8rem;font-weight:500;
+      color:var(--muted);background:none;border:1px solid var(--border);cursor:pointer;
+      padding:.3rem .75rem;transition:color .15s,border-color .15s;white-space:nowrap;line-height:1.6;}
+    .sil-header__signout:hover{color:var(--text);border-color:var(--text);}
+    .sil-header__signout:disabled{opacity:.5;cursor:not-allowed;}
+    .sil-header__toggle{display:none;flex-direction:column;gap:4px;background:none;
+      border:none;cursor:pointer;padding:4px;flex-shrink:0;}
+    .sil-header__toggle span{display:block;width:20px;height:2px;background:var(--text);}
+    @media(max-width:700px){
+      .sil-header{padding:0 1rem;}
+      .sil-header__toggle{display:flex;}
+      .sil-header__nav{display:none;position:absolute;top:56px;left:0;right:0;
+        background:var(--bg);border-bottom:1px solid var(--border);flex-direction:column;
+        align-items:flex-start;padding:.75rem 1rem;gap:0;z-index:99;}
+      .sil-header__nav.sil-open{display:flex;}
+      .sil-header__nav a,.sil-header__signout{font-size:.875rem;padding:.55rem .5rem;}
+      .sil-header__signout{border:none;}
+    }
+
+    /* ── LAYOUT ── */
+    .bc{padding:.75rem 1.5rem 0;max-width:1100px;margin:0 auto;width:100%}
+    .bc ol{list-style:none;display:flex;gap:.3rem;align-items:center;font-size:.75rem;color:var(--muted);}
+    .bc li+li::before{content:'/';margin-right:.3rem;color:var(--border)}
+    .bc a{color:var(--muted);text-decoration:none;}
+    .bc a:hover{color:var(--accent);text-decoration:underline;}
+
+    main{max-width:1100px;margin:0 auto;padding:1.5rem 1.5rem 4rem;flex:1;width:100%;}
+    @media(max-width:600px){main{padding:1rem .75rem 3rem}}
+
+    /* ── PAGE HEADER ── */
+    .ph{margin-bottom:1.5rem;padding-bottom:1.25rem;border-bottom:1px solid var(--border);
+      display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;}
+    .ph-left h2{font-family:var(--font-heading);font-size:1.5rem;font-weight:600;
+      letter-spacing:-.02em;line-height:1.2;margin-bottom:.2rem;}
+    .ph-left p{font-size:.82rem;color:var(--muted);}
+
+    /* ── SESSION BAR ── */
+    .session-bar{display:flex;align-items:center;gap:.65rem;flex-wrap:wrap;}
+    .session-bar label{font-size:.75rem;font-weight:500;color:var(--muted);}
+    select.session-select{font-family:var(--font-body);font-size:.8rem;
+      padding:.4rem .7rem;border:1px solid var(--border);background:var(--bg);
+      color:var(--text);cursor:pointer;outline:none;min-width:140px;}
+    select.session-select:focus{border-color:var(--accent);}
+    .sbtn{font-family:var(--font-heading);font-size:.72rem;font-weight:600;
+      padding:.38rem .9rem;border:1px solid var(--border);background:var(--bg);
+      color:var(--text);cursor:pointer;transition:all .12s;white-space:nowrap;}
+    .sbtn:hover{border-color:var(--accent);color:var(--accent);}
+    .sbtn.primary{background:var(--accent);color:white;border-color:var(--accent);}
+    .sbtn.primary:hover{background:var(--accent-hover);}
+    .sbtn:disabled{opacity:.45;cursor:not-allowed;}
+
+    /* ── FREQUENCY RATIO PANEL ── */
+    .ratio-panel{border:1px solid var(--border);background:var(--surface);
+      margin-bottom:1rem;padding:.85rem 1rem;}
+    .ratio-panel-head{display:flex;align-items:center;justify-content:space-between;
+      margin-bottom:.85rem;flex-wrap:wrap;gap:.5rem;}
+    .ratio-panel-title{font-family:var(--font-heading);font-size:.67rem;font-weight:600;
+      letter-spacing:.12em;text-transform:uppercase;color:var(--muted);}
+    .ratio-lock-row{display:flex;align-items:center;gap:.65rem;flex-wrap:wrap;}
+    .ratio-lock-label{font-size:.75rem;color:var(--muted);}
+    .ratio-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.6rem;}
+    @media(max-width:600px){.ratio-grid{grid-template-columns:repeat(2,1fr);}}
+    .ratio-cell{background:var(--bg);border:1px solid var(--border);padding:.6rem .75rem;}
+    .ratio-cell-label{font-size:.65rem;letter-spacing:.1em;text-transform:uppercase;
+      color:var(--muted);margin-bottom:.4rem;}
+    .ratio-cell-main{display:flex;align-items:center;gap:.4rem;margin-bottom:.3rem;}
+    .ratio-num{font-family:var(--font-heading);font-size:1rem;font-weight:600;color:var(--text);}
+    .ratio-slash{color:var(--muted);font-size:.9rem;}
+    .ratio-input{font-family:var(--font-heading);font-size:.85rem;font-weight:600;
+      width:36px;padding:.15rem .3rem;border:1px solid var(--border);background:var(--bg);
+      color:var(--text);text-align:center;outline:none;}
+    .ratio-input:focus{border-color:var(--accent);}
+    .ratio-cell-freq{font-size:.7rem;color:var(--accent);font-weight:600;
+      font-variant-numeric:tabular-nums;}
+    .ratio-cell-pitch{font-size:.68rem;color:var(--muted);}
+    .ratio-apply{font-family:var(--font-heading);font-size:.72rem;font-weight:600;
+      padding:.35rem .85rem;border:1px solid var(--accent);background:transparent;
+      color:var(--accent);cursor:pointer;transition:all .12s;}
+    .ratio-apply:hover{background:var(--accent);color:white;}
+
+    /* ── TRANSPORT ── */
+    .transport{display:flex;align-items:center;gap:.75rem;padding:.85rem 1rem;
+      border:1px solid var(--border);background:var(--surface);margin-bottom:1rem;flex-wrap:wrap;}
+    .t-btn{font-family:var(--font-heading);font-size:.78rem;font-weight:600;
+      padding:.55rem 1.25rem;border:none;cursor:pointer;transition:all .12s;
+      display:flex;align-items:center;gap:.45rem;letter-spacing:-.01em;}
+    .t-btn.play{background:var(--accent);color:white;}
+    .t-btn.play:hover{background:var(--accent-hover);}
+    .t-btn.stop{background:var(--bg);color:var(--text);border:1px solid var(--border);}
+    .t-btn.stop:hover{border-color:var(--accent);color:var(--accent);}
+    .t-btn.record{background:#c0392b;color:white;}
+    .t-btn.record:hover{background:#a93226;}
+    .t-btn.record.active{animation:recPulse 1s infinite;}
+    @keyframes recPulse{0%,100%{opacity:1}50%{opacity:.6}}
+    .t-btn:disabled{opacity:.4;cursor:not-allowed;}
+    .transport-time{font-family:var(--font-heading);font-size:.85rem;font-weight:600;
+      color:var(--text);letter-spacing:.04em;font-variant-numeric:tabular-nums;margin-left:.25rem;}
+    .transport-right{margin-left:auto;display:flex;align-items:center;gap:.65rem;}
+    .dl-mix-btn{font-family:var(--font-heading);font-size:.72rem;font-weight:600;
+      padding:.38rem .9rem;border:1px solid var(--border);background:var(--bg);
+      color:var(--muted);cursor:pointer;transition:all .12s;}
+    .dl-mix-btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent);}
+    .dl-mix-btn:disabled{opacity:.4;cursor:not-allowed;}
+
+    /* ── TRACKS ── */
+    .tracks{display:flex;flex-direction:column;gap:.6rem;margin-bottom:1rem;}
+    .track{border:1px solid var(--border);background:var(--bg);}
+    .track.has-audio{border-color:#c8ddd4;}
+    .track.osc-mode{border-color:#d4c8dd;}
+    .track-head{display:flex;align-items:center;gap:.65rem;padding:.6rem .85rem;
+      border-bottom:1px solid var(--border);background:var(--surface);flex-wrap:wrap;}
+    .track-num{font-family:var(--font-heading);font-size:.7rem;font-weight:600;
+      letter-spacing:.08em;color:var(--muted);flex-shrink:0;width:20px;}
+    .track-name{font-size:.8rem;font-weight:500;color:var(--text);flex:1;min-width:80px;}
+    .track-file-info{font-size:.72rem;color:var(--muted);flex:2;min-width:100px;
+      overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .track-source-btns{display:flex;gap:.35rem;flex-shrink:0;}
+    .track-select-btn{font-family:var(--font-heading);font-size:.68rem;font-weight:600;
+      padding:.3rem .75rem;border:1px solid var(--border);background:var(--bg);
+      color:var(--muted);cursor:pointer;transition:all .12s;white-space:nowrap;}
+    .track-select-btn:hover{border-color:var(--accent);color:var(--accent);}
+    .track-select-btn.loaded{color:var(--accent);border-color:var(--accent);}
+    .track-osc-btn{font-family:var(--font-heading);font-size:.68rem;font-weight:600;
+      padding:.3rem .75rem;border:1px solid var(--border);background:var(--bg);
+      color:var(--muted);cursor:pointer;transition:all .12s;white-space:nowrap;}
+    .track-osc-btn:hover{border-color:var(--ring);color:var(--ring);}
+    .track-osc-btn.active{background:var(--ring);color:white;border-color:var(--ring);}
+
+    /* Waveform mini */
+    .track-wave{height:44px;background:var(--surface);border-bottom:1px solid var(--border);
+      position:relative;}
+    .track-wave canvas{width:100%;height:100%;display:block;}
+
+    /* Osc visualizer */
+    .osc-vis{height:44px;background:var(--surface);border-bottom:1px solid var(--border);
+      position:relative;display:flex;align-items:center;justify-content:center;}
+    .osc-vis canvas{width:100%;height:100%;display:block;}
+
+    /* ── CONTROLS GRID ── */
+    .track-controls{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:0;}
+    .ctrl-group{padding:.6rem .75rem;border-right:1px solid var(--border);
+      border-bottom:1px solid var(--border);}
+    .ctrl-group:last-child{border-right:none;}
+    .ctrl-label{font-size:.62rem;font-weight:600;letter-spacing:.1em;
+      text-transform:uppercase;color:var(--muted);margin-bottom:.35rem;
+      display:flex;align-items:center;justify-content:space-between;gap:.25rem;flex-wrap:wrap;}
+    .ctrl-val{font-size:.7rem;font-weight:600;color:var(--accent);font-variant-numeric:tabular-nums;}
+    .ctrl-val.ring{color:var(--ring);}
+
+    /* Toggle */
+    .toggle-row{display:flex;align-items:center;gap:.5rem;margin-bottom:.35rem;}
+    .toggle{position:relative;width:32px;height:18px;flex-shrink:0;}
+    .toggle input{opacity:0;width:0;height:0;position:absolute;}
+    .toggle-slider{position:absolute;inset:0;background:var(--border);
+      cursor:pointer;border-radius:18px;transition:background .15s;}
+    .toggle-slider::before{content:'';position:absolute;width:12px;height:12px;
+      left:3px;top:3px;background:white;border-radius:50%;transition:transform .15s;}
+    .toggle input:checked+.toggle-slider{background:var(--accent);}
+    .toggle input:checked+.toggle-slider::before{transform:translateX(14px);}
+    .toggle.ring-toggle input:checked+.toggle-slider{background:var(--ring);}
+    .toggle-label{font-size:.72rem;font-weight:500;color:var(--muted);}
+
+    /* Sliders */
+    input[type=range]{-webkit-appearance:none;width:100%;height:3px;
+      background:var(--border);outline:none;cursor:pointer;}
+    input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;
+      border-radius:50%;background:var(--accent);cursor:pointer;}
+    input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;
+      background:var(--accent);cursor:pointer;border:none;}
+    input[type=range].ring-range::-webkit-slider-thumb{background:var(--ring);}
+    input[type=range].ring-range::-moz-range-thumb{background:var(--ring);}
+
+    /* Ring modulator sub-display */
+    .ring-freqs{font-size:.65rem;color:var(--ring);margin-top:.3rem;line-height:1.5;
+      font-variant-numeric:tabular-nums;}
+
+    /* Tape meter */
+    .tape-meter{height:3px;background:var(--border);margin-top:.4rem;position:relative;}
+    .tape-meter-fill{height:100%;width:0%;background:var(--accent);transition:width .5s,background .5s;}
+
+    /* Pitch display under speed */
+    .pitch-label{font-size:.65rem;color:var(--muted);margin-top:.2rem;}
+
+    /* ── LIBRARY ── */
+    .library{border:1px solid var(--border);margin-bottom:1rem;}
+    .library-head{padding:.7rem 1rem;border-bottom:1px solid var(--border);
+      background:var(--surface);display:flex;align-items:center;
+      justify-content:space-between;gap:.75rem;flex-wrap:wrap;}
+    .library-head h3{font-family:var(--font-heading);font-size:.82rem;font-weight:600;}
+    .storage-bar-wrap{display:flex;align-items:center;gap:.6rem;font-size:.7rem;color:var(--muted);}
+    .storage-bar{width:80px;height:4px;background:var(--border);}
+    .storage-bar-fill{height:100%;background:var(--accent);transition:width .3s;}
+    .library-upload-row{padding:.6rem 1rem;border-bottom:1px solid var(--border);
+      display:flex;align-items:center;gap:.65rem;flex-wrap:wrap;background:#fafaf8;}
+    .file-input-label{font-family:var(--font-heading);font-size:.72rem;font-weight:600;
+      padding:.35rem .85rem;border:1px solid var(--border);background:var(--bg);
+      color:var(--text);cursor:pointer;transition:all .12s;white-space:nowrap;}
+    .file-input-label:hover{border-color:var(--accent);color:var(--accent);}
+    #fileUploadInput{display:none;}
+    .rec-btn{font-family:var(--font-heading);font-size:.72rem;font-weight:600;
+      padding:.35rem .85rem;border:1px solid #c0392b;background:var(--bg);
+      color:#c0392b;cursor:pointer;transition:all .12s;white-space:nowrap;}
+    .rec-btn:hover{background:#c0392b;color:white;}
+    .rec-btn.active{background:#c0392b;color:white;animation:recPulse 1s infinite;}
+    .upload-status{font-size:.72rem;color:var(--muted);}
+    .library-list{max-height:260px;overflow-y:auto;}
+    .lib-item{display:flex;align-items:center;gap:.6rem;padding:.55rem 1rem;
+      border-bottom:1px solid var(--border);transition:background .1s;}
+    .lib-item:last-child{border-bottom:none;}
+    .lib-item:hover{background:var(--surface);}
+    .lib-item-name{flex:1;font-size:.8rem;font-weight:500;color:var(--text);
+      overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
+    .lib-item-meta{font-size:.68rem;color:var(--muted);flex-shrink:0;white-space:nowrap;}
+    .lib-item-actions{display:flex;gap:.35rem;flex-shrink:0;}
+    .lib-action{font-size:.65rem;padding:.2rem .5rem;border:1px solid var(--border);
+      background:var(--bg);color:var(--muted);cursor:pointer;transition:all .1s;}
+    .lib-action:hover{border-color:var(--accent);color:var(--accent);}
+    .lib-action.danger:hover{border-color:var(--error);color:var(--error);}
+    .lib-action.add-to{font-weight:600;border-color:#c8ddd4;color:var(--accent);}
+    .lib-empty{padding:2rem;text-align:center;font-size:.82rem;color:var(--muted);}
+
+    /* ── MODALS ── */
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);
+      z-index:200;display:none;align-items:center;justify-content:center;padding:1rem;}
+    .modal-overlay.open{display:flex;}
+    .modal{background:var(--bg);border:1px solid var(--border);width:100%;
+      max-width:560px;max-height:90vh;overflow-y:auto;}
+    .modal-head{padding:.85rem 1.1rem;border-bottom:1px solid var(--border);
+      display:flex;align-items:center;justify-content:space-between;}
+    .modal-head h3{font-family:var(--font-heading);font-size:.9rem;font-weight:600;}
+    .modal-close{font-size:1.1rem;background:none;border:none;cursor:pointer;
+      color:var(--muted);line-height:1;padding:.2rem;}
+    .modal-close:hover{color:var(--text);}
+    .modal-body{padding:1.1rem;}
+    .modal-footer{padding:.85rem 1.1rem;border-top:1px solid var(--border);
+      display:flex;gap:.65rem;justify-content:flex-end;}
+    .modal-input{width:100%;padding:.6rem .85rem;border:1px solid var(--border);
+      font-family:var(--font-body);font-size:.875rem;color:var(--text);
+      background:var(--bg);outline:none;}
+    .modal-input:focus{border-color:var(--accent);}
+
+    /* ── MESSAGES ── */
+    .msg{padding:.65rem .9rem;font-size:.78rem;line-height:1.5;margin-bottom:.8rem;display:none;}
+    .msg.error{background:var(--error-bg);border-left:3px solid var(--error);color:var(--error);}
+    .msg.success{background:var(--accent-light);border-left:3px solid var(--accent);color:var(--accent);}
+    .msg.show{display:block;}
+    #renameMsg{margin:0 0 .8rem;}
+
+    /* ── INSTRUCTIONS + ESSAY ── */
+    .instructions{font-size:.9rem;line-height:1.75;color:var(--text);margin-top:2.5rem;
+      padding-top:2rem;border-top:1px solid var(--border);}
+    .instructions h2{font-family:var(--font-heading);font-size:1rem;font-weight:600;
+      letter-spacing:-.01em;margin:1.5rem 0 .4rem;}
+    .instructions h2:first-child{margin-top:0;}
+    .instructions p+p{margin-top:.75rem;}
+    .instructions em{font-style:italic;}
+    .instructions strong{font-weight:600;}
+    .instructions a{color:var(--accent);text-decoration:underline;}
+
+    /* Essay divider */
+    .essay-divider{display:flex;align-items:center;gap:1rem;margin:2.5rem 0 2rem;}
+    .essay-divider-line{flex:1;height:1px;background:var(--border);}
+    .essay-divider-label{font-family:var(--font-heading);font-size:.67rem;font-weight:600;
+      letter-spacing:.14em;text-transform:uppercase;color:var(--muted);white-space:nowrap;}
+
+    /* Pull quote */
+    .pull-quote{border-left:3px solid var(--accent);padding:.75rem 1rem;margin:1.25rem 0;
+      background:var(--surface);}
+    .pull-quote p{font-size:.88rem;color:var(--text);font-style:italic;line-height:1.65;}
+    .pull-quote cite{display:block;font-size:.72rem;color:var(--muted);
+      font-style:normal;margin-top:.35rem;}
+
+    footer{border-top:1px solid var(--border);padding:1.25rem 2rem;
+      text-align:center;font-size:.78rem;color:var(--muted);margin-top:1rem;}
+    footer a{color:var(--muted);text-decoration:none;}
+    footer a:hover{color:var(--accent);}
+
+    @media(max-width:600px){
+      .track-controls{grid-template-columns:repeat(2,1fr);}
+      .ratio-grid{grid-template-columns:repeat(2,1fr);}
+      .ph{flex-direction:column;}
+      .session-bar{width:100%;}
+    }
+  </style>
+</head>
+<body>
+
+<header class="sil-header">
+  <a class="sil-header__wordmark" href="/dashboard/">Sensory Intelligence Lab</a>
+  <button class="sil-header__toggle" id="silMenuToggle" aria-label="Toggle navigation" aria-expanded="false">
+    <span></span><span></span><span></span>
+  </button>
+  <nav class="sil-header__nav" id="silNav">
+    <a href="/dashboard/">Dashboard</a>
+    <a href="/account/">Account</a>
+    <a href="/booking/">Book a session</a>
+    <button class="sil-header__signout" id="silSignOut">Sign out</button>
+  </nav>
+</header>
+
+<nav aria-label="Breadcrumb" class="bc">
+  <ol>
+    <li><a href="/dashboard/">Dashboard</a></li>
+
+    <li>Soundscape Machine</li>
+  </ol>
+</nav>
+
+<main>
+
+  <div class="ph">
+    <div class="ph-left">
+      <h2>Soundscape Machine</h2>
+      <p>Four-track tape manipulation with ring modulation and serial frequency structures — after Delia Derbyshire.</p>
+    </div>
+    <div class="session-bar">
+      <label for="sessionSelect">Session</label>
+      <select class="session-select" id="sessionSelect">
+        <option value="">— New session —</option>
+      </select>
+      <button class="sbtn" onclick="saveSession()">Save</button>
+      <button class="sbtn" onclick="saveSessionAs()">Save as…</button>
+      <button class="sbtn" onclick="deleteSession()" style="color:var(--error)">Delete</button>
+    </div>
+  </div>
+
+  <!-- Frequency ratio panel -->
+  <div class="ratio-panel">
+    <div class="ratio-panel-head">
+      <span class="ratio-panel-title">frequency ratios &amp; serial structure</span>
+      <div class="ratio-lock-row">
+        <span class="ratio-lock-label">lock ratios to track 1</span>
+        <label class="toggle">
+          <input type="checkbox" id="ratioLock" onchange="toggleRatioLock(this.checked)">
+          <span class="toggle-slider"></span>
+        </label>
+        <button class="ratio-apply" onclick="applyRatios()">apply ratios</button>
+      </div>
+    </div>
+    <div class="ratio-grid" id="ratioGrid">
+      <!-- populated by JS -->
+    </div>
+  </div>
+
+  <!-- Transport -->
+  <div class="transport">
+    <button class="t-btn play" id="playBtn" onclick="transportPlay()" disabled>
+      <svg width="10" height="12" viewBox="0 0 10 12" fill="currentColor"><path d="M0 0l10 6L0 12z"/></svg>
+      Play
+    </button>
+    <button class="t-btn stop" id="stopBtn" onclick="transportStop()" disabled>
+      <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><rect width="10" height="10"/></svg>
+      Stop
+    </button>
+    <button class="t-btn record" id="mixRecordBtn" onclick="toggleMixRecord()" disabled>
+      <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><circle cx="5" cy="5" r="5"/></svg>
+      Rec mix
+    </button>
+    <span class="transport-time" id="transportTime">0:00.0</span>
+    <div class="transport-right">
+      <button class="dl-mix-btn" id="dlMixBtn" disabled onclick="downloadMix()">Download mix WAV</button>
+    </div>
+  </div>
+
+  <!-- Four tracks -->
+  <div class="tracks" id="tracksContainer"></div>
+
+  <!-- Library -->
+  <div class="library">
+    <div class="library-head">
+      <h3>Recordings library</h3>
+      <div class="storage-bar-wrap">
+        <div class="storage-bar"><div class="storage-bar-fill" id="storageFill"></div></div>
+        <span id="storageLabel">— / 25 MB</span>
+      </div>
+    </div>
+    <div class="library-upload-row">
+      <label class="file-input-label" for="fileUploadInput">Upload file</label>
+      <input type="file" id="fileUploadInput" accept="audio/*" multiple>
+      <button class="rec-btn" id="libRecBtn" onclick="toggleLibRecord()"><svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><circle cx="5" cy="5" r="5"/></svg> Record</button>
+      <span class="upload-status" id="uploadStatus"></span>
+    </div>
+    <div class="library-list" id="libraryList">
+      <div class="lib-empty">No recordings yet. Upload or record to get started.</div>
+    </div>
+  </div>
+
+  <div class="msg" id="globalMsg"></div>
+
+  <!-- ── INSTRUCTIONS ── -->
+  <div class="instructions">
+
+    <h2>How to use the Tape Laboratory</h2>
+    <p>Each of the four tracks can be loaded with a recording from your library, or switched to oscillator mode to generate a pure tone directly — just as Derbyshire combined field recordings with tones produced by the BBC Radiophonic Workshop's test-tone generators. Use the speed controls to shift pitch exactly as she did: slowing tape by half drops the sound exactly one octave, doubling it raises one octave. The pitch interval is displayed alongside the multiplier so the mathematical relationship is always visible.</p>
+
+    <h2>Ring modulator</h2>
+    <p>Each track has a ring modulator — a carrier oscillator whose signal is multiplied against the track audio. Multiplication produces the sum and difference of the two frequencies: if your track has a tone at 220 Hz and the carrier is at 150 Hz, the output contains 370 Hz and 70 Hz, and neither of the originals. This is the source of Derbyshire's characteristic metallic, inharmonic timbre. The sum and difference frequencies are displayed in real time beneath the carrier slider. Try setting the carrier to a simple harmonic ratio of your source frequency — 3:2, 5:4 — for more musical results, or to something irrational for the alien sound she favoured.</p>
+
+    <h2>Serial frequency structures</h2>
+    <p>The ratio panel above the tracks lets you define integer relationships between all four tracks, relative to track 1. Set the numerator and denominator for each track — 1:1, 2:1, 3:2, 5:4 — and press <strong>apply ratios</strong> to automatically set track speeds to maintain those relationships. With <strong>lock ratios</strong> enabled, changing track 1's speed rescales all other tracks proportionally, preserving the harmonic structure. This is a direct implementation of the compositional method Derbyshire used in her later notebooks: treating frequency ratios as architectural material, not as melody.</p>
+
+    <h2>Tape degradation</h2>
+    <p>Enable tape degradation on any looping track to simulate the physical deterioration of a real tape loop — the filter closes, wow and flutter increase, and noise accumulates with each pass. Derbyshire worked with tape loops constantly; physical degradation was not an artifact to be avoided but a natural evolution of the material. The degradation meter shows accumulated wear; press reset tape to return the track to clean condition.</p>
+
+    <h2>Oscillator mode</h2>
+    <p>Press the <strong>oscillator</strong> button on any track to replace the file player with a tone generator. Set the waveform (sine, triangle, square, or filtered noise) and frequency. In oscillator mode, the ring modulator applies to the generated tone, and the frequency ratio panel locks this track's frequency to the defined ratio. This is the closest approximation to Derbyshire's actual working method available in a browser.</p>
+
+    <!-- ── ESSAY DIVIDER ── -->
+    <div class="essay-divider">
+      <div class="essay-divider-line"></div>
+      <span class="essay-divider-label">Delia Derbyshire — Life &amp; Work</span>
+      <div class="essay-divider-line"></div>
+    </div>
+
+    <h2>The woman from Coventry</h2>
+    <p>Delia Derbyshire was born in Coventry in 1937, and the city's wartime bombing shaped her relationship to sound before she had the vocabulary to describe it. She later recalled the all-clear siren sounding after raids — a pure, sustained tone floating over rubble, sound completely detached from its source, from instrument, from player, from intention. She heard it not as music but as something more fundamental: organised frequency. That early impression became a kind of compass for the rest of her life.</p>
+    <p>She read mathematics and music at Girton College, Cambridge, graduating in 1959 — one of the few women in either department. Mathematics gave her a way of thinking about sound structurally, as relationships between quantities rather than as expression. When she applied for a job at Decca Records shortly after graduation, she was told the studio was not a place for women. The BBC, less overtly, was not much different — but it had the Radiophonic Workshop.</p>
+
+    <h2>The BBC Radiophonic Workshop</h2>
+    <p>The Radiophonic Workshop was established in 1958 to produce sound effects and incidental music for BBC radio programmes. It was not considered a prestigious posting. Composers and musicians in the BBC's mainstream departments generally regarded it as a technical backwater; the Workshop's staff were not permitted to claim composer credits for many years. Derbyshire joined in 1962 and stayed until 1973. During that decade, working without synthesisers, she produced some of the most significant electronic music of the twentieth century — though she would not be widely recognised for it until long after she left.</p>
+    <p>Her tools were tape, scissors, splicing blocks, variable-speed playback decks, ring modulators, filters, and oscillators that produced test tones. To transpose a sound up a major third, she sped up the tape. To create a chord, she recorded and layered individual notes. Every texture, every rhythm, every timbral transformation required physical intervention — cutting, splicing, re-recording. The studio was as much a craft workshop as a music room.</p>
+
+    <div class="pull-quote">
+      <p>I could hear sounds in my head that I couldn't produce on any instrument. The tape gave me a way to reach them — but it cost you. Every second of music might take a day of cutting.</p>
+      <cite>— Delia Derbyshire, from an interview, c. 1996</cite>
+    </div>
+
+    <h2>The Doctor Who theme</h2>
+    <p>In 1963 Derbyshire realised Ron Grainer's sketch for the <em>Doctor Who</em> theme — the first piece of electronic music to reach a truly mass audience. She began with white noise and individual notes plucked from a single string of a plucked instrument, chose specific recordings from among dozens based on their overtone character, then cut, transposed, and assembled them on tape. The bass line was filtered noise. The melody was a combination of oscillator tones and tape-manipulated recordings of a single plucked string, each note cut from a different region of the recording to vary timbre slightly. The whole was assembled in segments and layered by bouncing between tape machines.</p>
+    <p>When Grainer heard the result, he reportedly asked, "Did I write that?" She replied, "Most of it." She received no composer credit. The BBC's policy at the time was that Workshop staff produced sound effects rather than compositions, and the distinction was administrative rather than aesthetic. The theme was revised numerous times by subsequent producers; Derbyshire's original realisation was not broadcast again after 1980.</p>
+
+    <h2>Ring modulation and the Delian mode</h2>
+    <p>Ring modulation — multiplying two audio signals to produce sum and difference frequencies — was a technique Derbyshire returned to throughout her career. The BBC Workshop had a hardware ring modulator, a circuit whose output contained none of the original frequencies but only their mathematical combinations. The effect is immediately distinctive: harmonic, metallic, hovering outside conventional musical scales. Derbyshire used it to transform recordings of everyday objects into sounds that had no origin in the physical world — or seemed not to.</p>
+    <p>She spoke of a "Delian mode" — her own term for a kind of non-tonal, frequency-space harmony that existed outside equal temperament. The ring modulator was its primary instrument: by choosing carrier and source frequencies whose sum and difference fell into specific arithmetic relationships, she could construct chords and textures that had the internal consistency of tonal music without any of its referents. It was harmony derived from mathematics rather than from tradition.</p>
+
+    <h2>The notebooks: serial structure and number</h2>
+    <p>Among the materials found in Derbyshire's attic after her death in 2001 were dozens of notebooks — grids of numbers, frequency ratios, integer sequences mapped to pitch, duration, and dynamics. She had been working with serial compositional methods, but not in the twelve-tone tradition of Schoenberg or Webern. Her serial structures were arithmetical: she would choose a set of integer ratios — 1:2:3:5:8, or 4:7:11:13 — and use them to determine the frequency relationships between layers, the timing of entries, the modulation depths of filters.</p>
+    <p>The unrealised work <em>Amor Dei</em> (begun c. 1971) shows this most clearly: a large-scale structure in which theological texts were mapped to frequency grids derived from number sequences, the proportions of Gregorian chant intervals converted into ratios governing the electronic texture. It was never completed. The notebooks show a composer working at the intersection of mathematics, theology, and acoustics — a convergence that had no obvious audience in 1971, and perhaps not much larger an audience now, but whose internal rigour is undeniable.</p>
+
+    <h2>Departure and rediscovery</h2>
+    <p>By 1973 the BBC had acquired the first commercially available synthesisers. Derbyshire left the Workshop that year, reportedly feeling that the instrument had made her painstaking methods — and the particular sensibility they produced — redundant overnight. A synthesiser could produce in seconds sounds that had taken her days to construct by hand. The comparison was not entirely fair: the sounds were not equivalent, and much of what she heard in her tapes came precisely from the resistance of the physical process. But the institutional enthusiasm for the new technology left little room for that argument.</p>
+    <p>She spent the following decades largely outside music — at one point working in a record shop in Coventry — while her work at the Radiophonic Workshop became increasingly canonical in the histories being written around her. The BBC radiophonic archive was not systematically preserved; significant quantities of tape from the Workshop's early years were reused or destroyed.</p>
+    <p>In the late 1990s a new generation of electronic musicians — working in ambient, techno, and experimental music — began to rediscover the Workshop's output, and Derbyshire's name in particular. She gave a handful of interviews and appeared at a small number of events. She was working on new music when she died in July 2001, aged 64. The notebooks, tapes, and recordings found in her home in Northampton subsequently became the Delia Derbyshire Archive, held at the University of Manchester. Researchers, musicians, and sound artists continue to work with this material; new pieces continue to be completed from her sketches.</p>
+
+    <h2>What she contributed</h2>
+    <p>Derbyshire's contribution to the field of electronic music is threefold. First, she demonstrated — on a programme watched by millions — that electronic sound could carry melody, rhythm, and emotion as effectively as any acoustic instrument, at a moment when this was genuinely contested. Second, she developed a compositional practice that treated the physical properties of tape — speed, splice, layering — as primary musical parameters, anticipating by decades the aesthetic of music made from recorded material. Third, her use of mathematics as compositional structure — ratio, sequence, arithmetic proportion — offered a model for electronic music that was neither the serialism of the academy nor the improvisation of popular music, but something more quietly rigorous: number as the grammar of sound.</p>
+    <p>She did this largely without credit, without institutional support, and without synthesisers, in a decade when the technology available to her was a tape recorder, a pair of scissors, and a ring modulator. The sounds she made from those materials remain, fifty years later, essentially inimitable.</p>
+
+  </div>
+
+</main>
+
+<!-- Rename modal -->
+<div class="modal-overlay" id="renameModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Rename recording</h3>
+      <button class="modal-close" onclick="closeModal('renameModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="msg" id="renameMsg"></div>
+      <label style="font-size:.78rem;font-weight:500;display:block;margin-bottom:.3rem;">Name</label>
+      <input type="text" class="modal-input" id="renameInput" placeholder="Recording name">
+    </div>
+    <div class="modal-footer">
+      <button class="sbtn" onclick="closeModal('renameModal')">Cancel</button>
+      <button class="sbtn primary" onclick="applyRename()">Rename</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add to track modal -->
+<div class="modal-overlay" id="addToTrackModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="addToTrackTitle">Add to track</h3>
+      <button class="modal-close" onclick="closeModal('addToTrackModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:.8rem;color:var(--muted);margin-bottom:1rem;">Select a recording to load.</p>
+      <div id="trackSelectList" style="display:flex;flex-direction:column;gap:.5rem;"></div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <p>Jordan Elias Music Therapy · Berlin ·
+    <a href="https://jordanelias.de/contact/" target="_blank" rel="noopener">Contact</a> ·
+    <a href="https://jordanelias.de/" target="_blank" rel="noopener">jordanelias.de</a>
+  </p>
+</footer>
+
+<script type="module">
+
+/* ═══════════════════════════════════════════════════════════
+   HEADER
+═══════════════════════════════════════════════════════════ */
+const path = window.location.pathname.replace(/\/$/, '') || '/';
+document.querySelectorAll('.sil-header__nav a').forEach(a => {
+  const href = (a.getAttribute('href') || '').replace(/\/$/, '') || '/';
+  if (href === path) a.classList.add('sil-active');
+});
+const menuToggle = document.getElementById('silMenuToggle');
+const silNav     = document.getElementById('silNav');
+menuToggle.addEventListener('click', () => {
+  const open = silNav.classList.toggle('sil-open');
+  menuToggle.setAttribute('aria-expanded', open);
+});
+silNav.querySelectorAll('a').forEach(a =>
+  a.addEventListener('click', () => silNav.classList.remove('sil-open'))
+);
+
+async function getSupabase() {
+  if (window._supabase) return window._supabase;
+  const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+  return createClient(
+    'https://lrjuufvrgkuvfxcmybtf.supabase.co',
+    'sb_publishable_VyiIJOgsGueUOVU_ed49-Q_rS4mi7J1'
+  );
+}
+document.getElementById('silSignOut').addEventListener('click', async function () {
+  this.disabled = true; this.textContent = 'Signing out…';
+  try { const sb = await getSupabase(); await sb.auth.signOut(); }
+  finally { window.location.replace('/'); }
+});
+
+/* ═══════════════════════════════════════════════════════════
+   CONSTANTS
+═══════════════════════════════════════════════════════════ */
+const QUOTA_BYTES   = 26214400; // 25 MB
+const N_TRACKS      = 4;
+const TRACK_COLORS  = ['#2a5c45', '#1a4d6b', '#6b3a1a', '#4a1a6b'];
+const TRACK_NAMES   = ['Track 1', 'Track 2', 'Track 3', 'Track 4'];
+const BASE_FREQ     = 220; // A3 — reference pitch for oscillator mode
+
+/* ═══════════════════════════════════════════════════════════
+   AUDIO ENGINE STATE
+═══════════════════════════════════════════════════════════ */
+let AC           = null;
+let masterGain   = null;
+let masterDest   = null;
+let mixRecorder  = null;
+let mixChunks    = [];
+let mixRecording = false;
+let isPlaying    = false;
+let wallStart    = 0;
+let timerRaf     = null;
+
+/* ── Ratio lock state ── */
+let ratioLocked = false;
+
+/* ── Track model ── */
+const tracks = Array.from({ length: N_TRACKS }, (_, i) => ({
+  id: i,
+  name: TRACK_NAMES[i],
+  // File mode
+  buffer: null,
+  fullBuffer: null,
+  fileName: null,
+  recordingId: null,
+  selStart: 0, selEnd: 1,
+  zoom: 1, scrollX: 0,
+  // Oscillator mode
+  oscMode: false,
+  oscType: 'sine',       // sine | triangle | square | noise
+  oscFreq: BASE_FREQ,
+  // Common params
+  volume: 0.75,
+  pan: 0,
+  speed: 1.0,
+  loop: true,
+  reverbEnabled: false,
+  reverbAmount: 0.3,
+  lfoEnabled: false,
+  lfoRate: 0.5,
+  lfoDepth: 800,
+  lfoShape: 'sine',
+  tapeEnabled: false,
+  tapeDegradation: 0,
+  tapeRate: 0.05,
+  // Ring mod
+  ringEnabled: false,
+  ringCarrier: 150,
+  // Ratio panel
+  ratioNum: i === 0 ? 1 : (i === 1 ? 2 : (i === 2 ? 3 : 4)),
+  ratioDen: 1,
+  // Audio nodes (runtime)
+  sourceNode: null,
+  oscNode: null,
+  noiseNode: null,
+  gainNode: null,
+  panNode: null,
+  filterNode: null,
+  tapeFilter: null,
+  reverbNode: null,
+  reverbGain: null,
+  dryGain: null,
+  lfoOsc: null,
+  lfoGain: null,
+  tapeWowOsc: null,
+  tapeFlutterOsc: null,
+  tapeWowGain: null,
+  tapeFlutterGain: null,
+  ringOsc: null,
+  ringGainPos: null,
+  ringGainNeg: null,
+  // Vis
+  playheadPct: 0,
+  dragging: null,
+  dragOffset: 0,
+  tapeLoopCountLast: 0,
+  _previewSrc: null,
+}));
+
+/* ═══════════════════════════════════════════════════════════
+   AUDIO INIT
+═══════════════════════════════════════════════════════════ */
+function initAudio() {
+  if (AC) return;
+  AC = new (window.AudioContext || window.webkitAudioContext)();
+  masterGain = AC.createGain();
+  masterGain.gain.value = 0.82;
+  masterDest = AC.createMediaStreamDestination();
+  masterGain.connect(AC.destination);
+  masterGain.connect(masterDest);
+  createReverbImpulse().then(ir => { window._reverbIR = ir; });
+}
+
+async function createReverbImpulse() {
+  const len = AC.sampleRate * 2.8;
+  const buf = AC.createBuffer(2, len, AC.sampleRate);
+  for (let c = 0; c < 2; c++) {
+    const d = buf.getChannelData(c);
+    for (let i = 0; i < len; i++)
+      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.2);
+  }
+  return buf;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TRACK AUDIO GRAPH
+═══════════════════════════════════════════════════════════ */
+function buildTrackGraph(t) {
+  if (!AC) initAudio();
+  teardownTrackGraph(t);
+  if (!t.buffer && !t.oscMode) return;
+
+  const now = AC.currentTime;
+
+  /* ── Source ── */
+  let sourceNode = null;
+
+  if (t.oscMode) {
+    if (t.oscType === 'noise') {
+      // Pink-ish noise via buffer source
+      const nLen = AC.sampleRate * 4;
+      const nBuf = AC.createBuffer(1, nLen, AC.sampleRate);
+      const nd = nBuf.getChannelData(0);
+      let b0=0,b1=0,b2=0;
+      for (let i = 0; i < nLen; i++) {
+        const w = Math.random() * 2 - 1;
+        b0 = .99886*b0 + w*.0555179;
+        b1 = .99332*b1 + w*.0750759;
+        b2 = .96900*b2 + w*.1538520;
+        nd[i] = (b0+b1+b2) * 0.18;
+      }
+      const nSrc = AC.createBufferSource();
+      nSrc.buffer = nBuf;
+      nSrc.loop = true;
+      t.noiseNode = nSrc;
+      sourceNode = nSrc;
+    } else {
+      const osc = AC.createOscillator();
+      osc.type = t.oscType;
+      osc.frequency.value = t.oscFreq;
+      t.oscNode = osc;
+      sourceNode = osc;
+    }
+  } else {
+    const src = AC.createBufferSource();
+    src.buffer = t.buffer;
+    src.playbackRate.value = t.speed;
+    src.loop = t.loop;
+    t.sourceNode = src;
+    sourceNode = src;
+  }
+
+  /* ── Tape degradation filter ── */
+  const tapeFilter = AC.createBiquadFilter();
+  tapeFilter.type = 'lowpass';
+  tapeFilter.frequency.value = t.tapeEnabled
+    ? Math.max(400, 20000 * Math.pow(1 - t.tapeDegradation, 2))
+    : 20000;
+  tapeFilter.Q.value = 0.5 + (t.tapeDegradation * 1.5);
+
+  /* ── Tape wow / flutter (only for file mode) ── */
+  let tapeWowOsc = null, tapeWowGain = null;
+  let tapeFlutterOsc = null, tapeFlutterGain = null;
+  if (!t.oscMode && t.sourceNode) {
+    tapeWowOsc = AC.createOscillator();
+    tapeWowGain = AC.createGain();
+    tapeWowOsc.type = 'sine';
+    tapeWowOsc.frequency.value = 0.8 + Math.random() * 0.7;
+    tapeWowGain.gain.value = t.tapeEnabled ? t.tapeDegradation * 15 : 0;
+    tapeWowOsc.connect(tapeWowGain);
+    tapeWowGain.connect(t.sourceNode.playbackRate);
+    tapeWowOsc.start();
+
+    tapeFlutterOsc = AC.createOscillator();
+    tapeFlutterGain = AC.createGain();
+    tapeFlutterOsc.type = 'sine';
+    tapeFlutterOsc.frequency.value = 7 + Math.random() * 4;
+    tapeFlutterGain.gain.value = t.tapeEnabled ? t.tapeDegradation * 0.008 : 0;
+    tapeFlutterOsc.connect(tapeFlutterGain);
+    tapeFlutterGain.connect(t.sourceNode.playbackRate);
+    tapeFlutterOsc.start();
+  }
+
+  /* ── LFO → filter frequency ── */
+  const lfoOsc  = AC.createOscillator();
+  const lfoGain = AC.createGain();
+  lfoOsc.type = t.lfoShape;
+  lfoOsc.frequency.value = t.lfoRate;
+  lfoGain.gain.value = t.lfoEnabled ? t.lfoDepth : 0;
+  lfoOsc.connect(lfoGain);
+  lfoGain.connect(tapeFilter.frequency);
+  lfoOsc.start();
+
+  /* ── Ring modulator ──────────────────────────────────────
+     Classic implementation:
+       ringOsc × input signal
+     Using two gain nodes with +1 and -1 to emulate
+     bipolar multiplication via a WaveShaperNode trick.
+     Simpler correct approach: use AudioWorklet or
+     simply multiply via a GainNode modulated at audio rate.
+  ─────────────────────────────────────────────────────── */
+  const ringMix  = AC.createGain();
+  ringMix.gain.value = 1;
+
+  const preRingGain = AC.createGain();
+  preRingGain.gain.value = t.ringEnabled ? 0 : 1; // dry when ring off
+
+  const ringOsc = AC.createOscillator();
+  ringOsc.type = 'sine';
+  ringOsc.frequency.value = t.ringCarrier;
+  ringOsc.start();
+
+  // Ring mod: multiply source by carrier
+  // Method: source → ringModGain (gain = 0), carrier → ringModGain.gain
+  // This makes ringModGain output = source × carrier
+  const ringModGain = AC.createGain();
+  ringModGain.gain.value = 0;     // carrier will drive this
+
+  const ringWet = AC.createGain();
+  ringWet.gain.value = t.ringEnabled ? 1 : 0;
+
+  const ringDry = AC.createGain();
+  ringDry.gain.value = t.ringEnabled ? 0 : 1;
+
+  /* ── Main chain ── */
+  const gainNode = AC.createGain();
+  gainNode.gain.value = t.volume;
+
+  const panNode = AC.createStereoPanner();
+  panNode.pan.value = t.pan;
+
+  const dryGain   = AC.createGain();
+  const reverbGain = AC.createGain();
+  const convolver  = AC.createConvolver();
+  if (window._reverbIR) convolver.buffer = window._reverbIR;
+  dryGain.gain.value   = t.reverbEnabled ? 1 - t.reverbAmount : 1;
+  reverbGain.gain.value = t.reverbEnabled ? t.reverbAmount : 0;
+
+  /* ── Connect graph ── */
+  // Source → tape filter → [ring mod] → gain → pan → reverb split → master
+  sourceNode.connect(tapeFilter);
+
+  // Ring mod path: source goes into ringModGain as signal,
+  // carrier oscillator controls the gain
+  sourceNode.connect(ringModGain);
+  ringOsc.connect(ringModGain.gain);  // carrier at audio rate modulates gain = multiplication
+  ringModGain.connect(ringWet);
+
+  // Dry path (ring off)
+  tapeFilter.connect(ringDry);
+
+  // Mix ring wet + dry
+  ringWet.connect(gainNode);
+  ringDry.connect(gainNode);
+
+  gainNode.connect(panNode);
+  panNode.connect(dryGain);
+  panNode.connect(convolver);
+  dryGain.connect(masterGain);
+  convolver.connect(reverbGain);
+  reverbGain.connect(masterGain);
+
+  /* ── Store refs ── */
+  t.gainNode        = gainNode;
+  t.panNode         = panNode;
+  t.filterNode      = tapeFilter;
+  t.tapeFilter      = tapeFilter;
+  t.reverbNode      = convolver;
+  t.reverbGain      = reverbGain;
+  t.dryGain         = dryGain;
+  t.lfoOsc          = lfoOsc;
+  t.lfoGain         = lfoGain;
+  t.tapeWowOsc      = tapeWowOsc;
+  t.tapeFlutterOsc  = tapeFlutterOsc;
+  t.tapeWowGain     = tapeWowGain;
+  t.tapeFlutterGain = tapeFlutterGain;
+  t.ringOsc         = ringOsc;
+  t.ringModGain     = ringModGain;
+  t.ringWet         = ringWet;
+  t.ringDry         = ringDry;
+}
+
+function teardownTrackGraph(t) {
+  const tryStop = n => { try { n && n.stop(); } catch(e){} };
+  tryStop(t.sourceNode);
+  tryStop(t.oscNode);
+  tryStop(t.noiseNode);
+  tryStop(t.lfoOsc);
+  tryStop(t.tapeWowOsc);
+  tryStop(t.tapeFlutterOsc);
+  tryStop(t.ringOsc);
+  tryStop(t._tapeNoiseSrc);
+  [
+    'sourceNode','oscNode','noiseNode','gainNode','panNode','filterNode','tapeFilter',
+    'reverbNode','reverbGain','dryGain','lfoOsc','lfoGain','tapeWowOsc','tapeFlutterOsc',
+    'tapeWowGain','tapeFlutterGain','ringOsc','ringModGain','ringWet','ringDry','_tapeNoiseSrc'
+  ].forEach(k => { t[k] = null; });
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TRANSPORT
+═══════════════════════════════════════════════════════════ */
+window.transportPlay = function() {
+  if (!AC) initAudio();
+  if (AC.state === 'suspended') AC.resume();
+  if (isPlaying) return;
+  const hasAny = tracks.some(t => t.buffer || t.oscMode);
+  if (!hasAny) return;
+  isPlaying = true;
+  wallStart = performance.now();
+  tracks.forEach(t => {
+    if (!t.buffer && !t.oscMode) return;
+    buildTrackGraph(t);
+    const node = t.oscNode || t.noiseNode || t.sourceNode;
+    if (node) node.start(0);
+    t.tapeLoopCountLast = 0;
+  });
+  updateTransportUI(true);
+  timerRaf = requestAnimationFrame(transportTick);
+};
+
+window.transportStop = function() {
+  if (!isPlaying) return;
+  isPlaying = false;
+  cancelAnimationFrame(timerRaf);
+  tracks.forEach(t => {
+    teardownTrackGraph(t);
+    t.playheadPct = 0;
+    drawWaveform(t);
+  });
+  document.getElementById('transportTime').textContent = '0:00.0';
+  updateTransportUI(false);
+  if (mixRecording) stopMixRecord();
+};
+
+function transportTick() {
+  if (!isPlaying) return;
+  const elapsed = (performance.now() - wallStart) / 1000;
+  const m = Math.floor(elapsed / 60);
+  const s = (elapsed % 60).toFixed(1);
+  document.getElementById('transportTime').textContent = `${m}:${s.padStart(4,'0')}`;
+
+  tracks.forEach(t => {
+    if (!t.buffer || !t.sourceNode) return;
+    const dur = t.buffer.duration / t.speed;
+    const pos = t.loop ? (elapsed % dur) / dur : Math.min(elapsed / dur, 1);
+    t.playheadPct = pos;
+    drawWaveform(t);
+
+    // Tape degradation per loop
+    if (t.tapeEnabled && t.loop && dur > 0) {
+      const loopCount = Math.floor(elapsed / dur);
+      if (loopCount > t.tapeLoopCountLast) {
+        t.tapeLoopCountLast = loopCount;
+        t.tapeDegradation = Math.min(1, t.tapeDegradation + t.tapeRate);
+        if (t.tapeFilter) {
+          t.tapeFilter.frequency.value = Math.max(400, 20000 * Math.pow(1 - t.tapeDegradation, 2));
+          t.tapeFilter.Q.value = 0.5 + t.tapeDegradation * 1.5;
+        }
+        if (t.tapeWowGain)     t.tapeWowGain.gain.value     = t.tapeDegradation * 15;
+        if (t.tapeFlutterGain) t.tapeFlutterGain.gain.value = t.tapeDegradation * 0.008;
+        updateTapeMeter(t);
+      }
+    }
+  });
+  timerRaf = requestAnimationFrame(transportTick);
+}
+
+function updateTransportUI(playing) {
+  document.getElementById('playBtn').disabled  = playing;
+  document.getElementById('stopBtn').disabled  = !playing;
+  document.getElementById('mixRecordBtn').disabled = !playing;
+  if (!playing) {
+    const hasAny = tracks.some(t => t.buffer || t.oscMode);
+    document.getElementById('playBtn').disabled = !hasAny;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MIX RECORD
+═══════════════════════════════════════════════════════════ */
+window.toggleMixRecord = function() {
+  if (!mixRecording) startMixRecord(); else stopMixRecord();
+};
+function startMixRecord() {
+  mixChunks = [];
+  mixRecorder = new MediaRecorder(masterDest.stream);
+  mixRecorder.ondataavailable = e => { if (e.data.size > 0) mixChunks.push(e.data); };
+  mixRecorder.onstop = onMixRecordStop;
+  mixRecorder.start();
+  mixRecording = true;
+  document.getElementById('mixRecordBtn').classList.add('active');
+}
+function stopMixRecord() {
+  if (!mixRecorder) return;
+  mixRecorder.stop();
+  mixRecording = false;
+  document.getElementById('mixRecordBtn').classList.remove('active');
+}
+function onMixRecordStop() {
+  const blob = new Blob(mixChunks, { type: 'audio/webm' });
+  const url  = URL.createObjectURL(blob);
+  const btn  = document.getElementById('dlMixBtn');
+  btn.disabled = false;
+  btn._url = url;
+  showGlobalMsg('Mix recording ready — click Download mix WAV to save.', 'success');
+}
+window.downloadMix = function() {
+  const btn = document.getElementById('dlMixBtn');
+  if (!btn._url) return;
+  const a = document.createElement('a');
+  a.href = btn._url; a.download = `tape-lab-mix-${Date.now()}.webm`; a.click();
+};
+
+/* ═══════════════════════════════════════════════════════════
+   WAVEFORM DRAW
+═══════════════════════════════════════════════════════════ */
+function drawWaveform(t) {
+  const canvas = document.getElementById(`wave-${t.id}`);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width  = canvas.offsetWidth * dpr;
+  canvas.height = 44 * dpr;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (t.oscMode) {
+    // Draw simple oscilloscope line for osc mode
+    const W = canvas.width, H = canvas.height;
+    const color = TRACK_COLORS[t.id];
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    const freq = t.oscType === 'noise' ? 30 : t.oscFreq;
+    const cycles = Math.min(8, freq / 20);
+    for (let x = 0; x < W; x++) {
+      const phase = (x / W) * cycles * Math.PI * 2;
+      const amp = t.oscType === 'noise'
+        ? (Math.sin(phase * 3.7) * 0.5 + Math.sin(phase * 7.3) * 0.3) * 0.6
+        : t.oscType === 'square' ? Math.sign(Math.sin(phase)) * 0.7
+        : t.oscType === 'triangle'
+          ? (2 / Math.PI) * Math.asin(Math.sin(phase)) * 0.75
+          : Math.sin(phase) * 0.75;
+      const y = H / 2 - amp * (H / 2 - 4);
+      x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    return;
+  }
+
+  if (!t.buffer) {
+    ctx.fillStyle = '#e5e5e0';
+    ctx.fillRect(0, canvas.height / 2 - 1, canvas.width, 2);
+    return;
+  }
+
+  const data  = t.buffer.getChannelData(0);
+  const W = canvas.width, H = canvas.height;
+  const step = Math.ceil(data.length / W);
+  const color = TRACK_COLORS[t.id];
+  ctx.fillStyle = color + '28';
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x = 0; x < W; x++) {
+    let max = 0, min = 0;
+    for (let j = 0; j < step; j++) {
+      const s = data[x * step + j] || 0;
+      if (s > max) max = s;
+      if (s < min) min = s;
+    }
+    const y1 = (1 - max) * H / 2;
+    const y2 = (1 - min) * H / 2;
+    if (x === 0) ctx.moveTo(x, y1); else ctx.lineTo(x, y1);
+    ctx.fillRect(x, y1, 1, y2 - y1);
+  }
+  ctx.stroke();
+
+  // Playhead
+  if (isPlaying && t.sourceNode) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2 * dpr;
+    ctx.globalAlpha = 0.9;
+    ctx.beginPath();
+    ctx.moveTo(t.playheadPct * W, 0);
+    ctx.lineTo(t.playheadPct * W, H);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TRACK PARAM SETTERS
+═══════════════════════════════════════════════════════════ */
+window.setTrackParam = function(id, param, value) {
+  const t = tracks[id];
+  t[param] = value;
+  if (!t.gainNode) return; // not currently playing
+
+  if (param === 'volume' && t.gainNode)   t.gainNode.gain.setTargetAtTime(value, AC.currentTime, 0.05);
+  if (param === 'pan'    && t.panNode)    t.panNode.pan.setTargetAtTime(value, AC.currentTime, 0.05);
+  if (param === 'speed'  && t.sourceNode) {
+    t.sourceNode.playbackRate.setTargetAtTime(value, AC.currentTime, 0.05);
+    // If ratio-locked, propagate to other tracks
+    if (ratioLocked && id === 0) applyRatiosFromTrack0Speed(value);
+  }
+  if (param === 'loop' && t.sourceNode)  t.sourceNode.loop = value;
+  if (param === 'reverbAmount') {
+    if (t.reverbGain) t.reverbGain.gain.setTargetAtTime(t.reverbEnabled ? value : 0, AC.currentTime, 0.05);
+    if (t.dryGain)    t.dryGain.gain.setTargetAtTime(t.reverbEnabled ? 1-value : 1, AC.currentTime, 0.05);
+  }
+  if (param === 'lfoRate' && t.lfoOsc)    t.lfoOsc.frequency.setTargetAtTime(value, AC.currentTime, 0.05);
+  if (param === 'ringCarrier' && t.ringOsc) {
+    t.ringOsc.frequency.setTargetAtTime(value, AC.currentTime, 0.05);
+    updateRingFreqDisplay(id);
+  }
+  if (param === 'oscFreq' && t.oscNode) {
+    t.oscNode.frequency.setTargetAtTime(value, AC.currentTime, 0.05);
+    updateRingFreqDisplay(id);
+  }
+};
+
+window.setTrackEffect = function(id, effect, enabled) {
+  const t = tracks[id];
+  t[effect] = enabled;
+
+  // Enable/disable related sliders in UI
+  const sliderMap = {
+    reverbEnabled: `reverb-slider-${id}`,
+    lfoEnabled:    `lfo-rate-${id}`,
+    tapeEnabled:   `tape-rate-${id}`,
+    ringEnabled:   `ring-carrier-${id}`,
+  };
+  const slider = document.getElementById(sliderMap[effect]);
+  if (slider) slider.disabled = !enabled;
+
+  if (effect === 'lfoEnabled') {
+    document.querySelectorAll(`#lfo-shapes-${id} .lfo-shape-btn`).forEach(b => b.disabled = !enabled);
+    if (t.lfoGain) t.lfoGain.gain.setTargetAtTime(enabled ? t.lfoDepth : 0, AC.currentTime, 0.05);
+  }
+  if (effect === 'reverbEnabled') {
+    if (t.reverbGain) t.reverbGain.gain.setTargetAtTime(enabled ? t.reverbAmount : 0, AC.currentTime, 0.05);
+    if (t.dryGain)    t.dryGain.gain.setTargetAtTime(enabled ? 1-t.reverbAmount : 1, AC.currentTime, 0.05);
+  }
+  if (effect === 'tapeEnabled') {
+    if (t.tapeFilter) {
+      t.tapeFilter.frequency.setTargetAtTime(enabled ? Math.max(400, 20000 * Math.pow(1-t.tapeDegradation,2)) : 20000, AC.currentTime, 0.1);
+    }
+    if (t.tapeWowGain)     t.tapeWowGain.gain.setTargetAtTime(enabled ? t.tapeDegradation*15 : 0, AC.currentTime, 0.1);
+    if (t.tapeFlutterGain) t.tapeFlutterGain.gain.setTargetAtTime(enabled ? t.tapeDegradation*0.008 : 0, AC.currentTime, 0.1);
+  }
+  if (effect === 'ringEnabled') {
+    if (t.ringWet) t.ringWet.gain.setTargetAtTime(enabled ? 1 : 0, AC.currentTime, 0.05);
+    if (t.ringDry) t.ringDry.gain.setTargetAtTime(enabled ? 0 : 1, AC.currentTime, 0.05);
+    // Update display
+    const display = document.getElementById(`ring-freqs-${id}`);
+    if (display) display.style.opacity = enabled ? '1' : '0.4';
+  }
+};
+
+window.setLfoShape = function(id, shape) {
+  const t = tracks[id];
+  t.lfoShape = shape;
+  if (t.lfoOsc) t.lfoOsc.type = shape;
+  document.querySelectorAll(`#lfo-shapes-${id} .lfo-shape-btn`)
+    .forEach(b => b.classList.toggle('active', b.dataset.shape === shape));
+};
+
+window.setOscType = function(id, type) {
+  const t = tracks[id];
+  t.oscType = type;
+  document.querySelectorAll(`#osc-type-btns-${id} .lfo-shape-btn`)
+    .forEach(b => b.classList.toggle('active', b.dataset.type === type));
+  drawWaveform(t);
+  // Rebuild if playing
+  if (isPlaying) { teardownTrackGraph(t); buildTrackGraph(t); const node = t.oscNode||t.noiseNode; if(node) node.start(0); }
+};
+
+window.toggleOscMode = function(id) {
+  const t = tracks[id];
+  if (isPlaying) transportStop();
+  t.oscMode = !t.oscMode;
+  renderTracks();
+  updatePlayBtn();
+};
+
+window.updatePanLabel = function(id, val) {
+  document.getElementById(`pan-label-${id}`).textContent =
+    val === 0 ? 'C' : val > 0 ? 'R'+Math.round(val*100) : 'L'+Math.round(Math.abs(val)*100);
+};
+
+/* ── Pitch interval display ── */
+function speedToPitch(speed) {
+  if (speed === 1) return 'original';
+  const semis = Math.round(Math.log2(speed) * 12);
+  if (semis === 0) return 'original';
+  const abs = Math.abs(semis);
+  const dir = semis > 0 ? '↑' : '↓';
+  const names = ['','m2','M2','m3','M3','P4','A4','P5','m6','M6','m7','M7','P8'];
+  if (abs <= 12) return dir + (names[abs] || abs + 'st');
+  const oct = Math.floor(abs/12);
+  const rem = abs % 12;
+  return dir + oct + 'oct' + (rem ? '+'+rem+'st' : '');
+}
+
+/* ── Ring mod freq display ── */
+function updateRingFreqDisplay(id) {
+  const t = tracks[id];
+  const display = document.getElementById(`ring-freqs-${id}`);
+  if (!display) return;
+  const srcFreq = t.oscMode ? t.oscFreq : (BASE_FREQ * t.speed);
+  const carrier = t.ringCarrier;
+  const sum  = Math.round(srcFreq + carrier);
+  const diff = Math.round(Math.abs(srcFreq - carrier));
+  display.textContent = `carrier: ${carrier} Hz · sum: ${sum} Hz · diff: ${diff} Hz`;
+}
+
+/* ── Tape meter ── */
+function updateTapeMeter(t) {
+  const fill = document.getElementById(`tape-meter-${t.id}`);
+  if (!fill) return;
+  fill.style.width = (t.tapeDegradation * 100) + '%';
+  fill.style.background = t.tapeDegradation > 0.7 ? '#c0392b'
+    : t.tapeDegradation > 0.4 ? '#e67e22' : 'var(--accent)';
+}
+
+window.resetTape = function(id) {
+  const t = tracks[id];
+  t.tapeDegradation = 0;
+  t.tapeLoopCountLast = 0;
+  if (t.tapeFilter) { t.tapeFilter.frequency.value = 20000; t.tapeFilter.Q.value = 0.5; }
+  if (t.tapeWowGain) t.tapeWowGain.gain.value = 0;
+  if (t.tapeFlutterGain) t.tapeFlutterGain.gain.value = 0;
+  updateTapeMeter(t);
+};
+
+/* ═══════════════════════════════════════════════════════════
+   FREQUENCY RATIO PANEL
+═══════════════════════════════════════════════════════════ */
+function renderRatioGrid() {
+  const grid = document.getElementById('ratioGrid');
+  grid.innerHTML = tracks.map(t => {
+    const effectiveFreq = t.oscMode
+      ? (t.oscFreq * t.ratioNum / t.ratioDen).toFixed(1)
+      : (BASE_FREQ * t.speed * t.ratioNum / t.ratioDen).toFixed(1);
+    const pitch = speedToPitch(t.speed);
+    return `<div class="ratio-cell" id="ratio-cell-${t.id}">
+      <div class="ratio-cell-label">Track ${t.id+1}</div>
+      <div class="ratio-cell-main">
+        <input class="ratio-input" type="number" min="1" max="32" value="${t.ratioNum}"
+          id="ratio-num-${t.id}" onchange="updateRatio(${t.id})">
+        <span class="ratio-slash">:</span>
+        <input class="ratio-input" type="number" min="1" max="32" value="${t.ratioDen}"
+          id="ratio-den-${t.id}" onchange="updateRatio(${t.id})">
+      </div>
+      <div class="ratio-cell-freq" id="ratio-freq-${t.id}">${effectiveFreq} Hz</div>
+      <div class="ratio-cell-pitch" id="ratio-pitch-${t.id}">${pitch}</div>
+    </div>`;
+  }).join('');
+}
+
+window.updateRatio = function(id) {
+  const t = tracks[id];
+  const num = parseInt(document.getElementById(`ratio-num-${id}`).value) || 1;
+  const den = parseInt(document.getElementById(`ratio-den-${id}`).value) || 1;
+  t.ratioNum = Math.max(1, Math.min(32, num));
+  t.ratioDen = Math.max(1, Math.min(32, den));
+};
+
+window.applyRatios = function() {
+  const t0 = tracks[0];
+  const baseSpeed = t0.speed;
+  const baseFreq  = t0.oscMode ? t0.oscFreq : BASE_FREQ * baseSpeed;
+
+  tracks.forEach((t, i) => {
+    const ratio = t.ratioNum / t.ratioDen;
+    if (t.oscMode) {
+      t.oscFreq = parseFloat((baseFreq * ratio).toFixed(2));
+      if (t.oscNode) t.oscNode.frequency.setTargetAtTime(t.oscFreq, AC.currentTime, 0.1);
+      document.getElementById(`osc-freq-${t.id}`).value = t.oscFreq;
+    } else {
+      // Set speed to achieve the ratio
+      const newSpeed = (baseFreq * ratio) / BASE_FREQ;
+      t.speed = parseFloat(Math.max(0.1, Math.min(4, newSpeed)).toFixed(3));
+      if (t.sourceNode) t.sourceNode.playbackRate.setTargetAtTime(t.speed, AC.currentTime, 0.1);
+      // Update slider and labels
+      const spd = document.getElementById(`spd-slider-${t.id}`);
+      if (spd) { spd.value = t.speed; }
+      document.getElementById(`spd-label-${t.id}`).textContent = t.speed.toFixed(2) + '×';
+      document.getElementById(`spd-pitch-${t.id}`).textContent = speedToPitch(t.speed);
+    }
+    // Update ratio display
+    document.getElementById(`ratio-freq-${t.id}`).textContent =
+      (t.oscMode ? t.oscFreq : BASE_FREQ * t.speed).toFixed(1) + ' Hz';
+    document.getElementById(`ratio-pitch-${t.id}`).textContent = speedToPitch(t.speed);
+    // Update ring display
+    updateRingFreqDisplay(t.id);
+  });
+  showGlobalMsg('Ratios applied to all tracks.', 'success');
+};
+
+window.toggleRatioLock = function(locked) {
+  ratioLocked = locked;
+};
+
+function applyRatiosFromTrack0Speed(newSpeed) {
+  const baseFreq = BASE_FREQ * newSpeed;
+  tracks.forEach((t, i) => {
+    if (i === 0) return;
+    const ratio = t.ratioNum / t.ratioDen;
+    const targetFreq = baseFreq * ratio;
+    t.speed = parseFloat(Math.max(0.1, Math.min(4, targetFreq / BASE_FREQ)).toFixed(3));
+    if (t.sourceNode) t.sourceNode.playbackRate.setTargetAtTime(t.speed, AC.currentTime, 0.1);
+    const spd = document.getElementById(`spd-slider-${t.id}`);
+    if (spd) spd.value = t.speed;
+    const lbl = document.getElementById(`spd-label-${t.id}`);
+    if (lbl) lbl.textContent = t.speed.toFixed(2) + '×';
+    const pch = document.getElementById(`spd-pitch-${t.id}`);
+    if (pch) pch.textContent = speedToPitch(t.speed);
+  });
+}
+
+function updatePlayBtn() {
+  const hasAny = tracks.some(t => t.buffer || t.oscMode);
+  document.getElementById('playBtn').disabled = !hasAny;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TRACK UI RENDER
+═══════════════════════════════════════════════════════════ */
+function renderTracks() {
+  const container = document.getElementById('tracksContainer');
+  container.innerHTML = '';
+  tracks.forEach(t => container.appendChild(buildTrackEl(t)));
+  tracks.forEach(t => { drawWaveform(t); updateRingFreqDisplay(t.id); });
+}
+
+function buildTrackEl(t) {
+  const id = t.id;
+  const color = TRACK_COLORS[id];
+  const div = document.createElement('div');
+  div.className = `track${t.buffer ? ' has-audio' : ''}${t.oscMode ? ' osc-mode' : ''}`;
+  div.id = `track-${id}`;
+
+  /* Speed label formatted */
+  const spdLabel = t.speed.toFixed(2) + '×';
+  const pitchLbl = speedToPitch(t.speed);
+
+  /* Pan label */
+  const panLbl = t.pan === 0 ? 'C' : t.pan > 0 ? 'R'+Math.round(t.pan*100) : 'L'+Math.round(Math.abs(t.pan)*100);
+
+  /* Ring freq (static render) */
+  const srcFreq = t.oscMode ? t.oscFreq : BASE_FREQ * t.speed;
+  const rSum  = Math.round(srcFreq + t.ringCarrier);
+  const rDiff = Math.round(Math.abs(srcFreq - t.ringCarrier));
+
+  div.innerHTML = `
+    <div class="track-head">
+      <span class="track-num">T${id+1}</span>
+      <span class="track-name">${t.name}</span>
+      <span class="track-file-info" id="tfile-${id}">
+        ${t.oscMode ? 'oscillator mode — ' + t.oscType : (t.fileName || 'No file loaded')}
+      </span>
+      <div class="track-source-btns">
+        <button class="track-osc-btn ${t.oscMode?'active':''}" onclick="toggleOscMode(${id})">
+          ${t.oscMode ? '◉ oscillator' : '○ oscillator'}
+        </button>
+        ${!t.oscMode ? `<button class="track-select-btn ${t.buffer?'loaded':''}" onclick="openLoadForTrack(${id})">
+          ${t.buffer ? '⟳ change' : '+ load file'}
+        </button>` : ''}
+      </div>
+    </div>
+
+    <!-- Waveform / osc vis -->
+    <div class="track-wave" id="track-wave-wrap-${id}">
+      <canvas id="wave-${id}"></canvas>
+    </div>
+
+    <!-- Controls grid -->
+    <div class="track-controls">
+
+      <!-- Volume -->
+      <div class="ctrl-group">
+        <div class="ctrl-label">Volume
+          <span class="ctrl-val" id="vol-label-${id}">${Math.round(t.volume*100)}%</span>
+        </div>
+        <input type="range" min="0" max="1" step="0.01" value="${t.volume}"
+          oninput="setTrackParam(${id},'volume',+this.value);document.getElementById('vol-label-${id}').textContent=Math.round(this.value*100)+'%'">
+      </div>
+
+      <!-- Pan -->
+      <div class="ctrl-group">
+        <div class="ctrl-label">Pan
+          <span class="ctrl-val" id="pan-label-${id}">${panLbl}</span>
+        </div>
+        <input type="range" min="-1" max="1" step="0.01" value="${t.pan}"
+          oninput="setTrackParam(${id},'pan',+this.value);updatePanLabel(${id},+this.value)">
+      </div>
+
+      ${t.oscMode ? `
+      <!-- Oscillator controls -->
+      <div class="ctrl-group">
+        <div class="ctrl-label">Frequency
+          <span class="ctrl-val" id="osc-freq-label-${id}">${t.oscFreq.toFixed(1)} Hz</span>
+        </div>
+        <input type="range" min="20" max="2000" step="0.5" value="${t.oscFreq}" id="osc-freq-${id}"
+          oninput="setTrackParam(${id},'oscFreq',+this.value);document.getElementById('osc-freq-label-${id}').textContent=parseFloat(this.value).toFixed(1)+' Hz'">
+      </div>
+      <div class="ctrl-group">
+        <div class="ctrl-label">Waveform</div>
+        <div class="lfo-shapes" id="osc-type-btns-${id}">
+          ${['sine','triangle','square','noise'].map(tp =>
+            `<button class="lfo-shape-btn ${t.oscType===tp?'active':''}" data-type="${tp}"
+              onclick="setOscType(${id},'${tp}')">${tp[0].toUpperCase()}</button>`).join('')}
+        </div>
+      </div>
+      ` : `
+      <!-- Speed / pitch -->
+      <div class="ctrl-group">
+        <div class="ctrl-label">Speed
+          <span class="ctrl-val" id="spd-label-${id}">${spdLabel}</span>
+        </div>
+        <input type="range" min="0.1" max="4" step="0.01" value="${t.speed}" id="spd-slider-${id}"
+          oninput="setTrackParam(${id},'speed',+this.value);document.getElementById('spd-label-${id}').textContent=parseFloat(this.value).toFixed(2)+'×';document.getElementById('spd-pitch-${id}').textContent=speedToPitch(+this.value)">
+        <div class="pitch-label" id="spd-pitch-${id}">${pitchLbl}</div>
+      </div>
+      <!-- Loop -->
+      <div class="ctrl-group">
+        <div class="ctrl-label">Loop</div>
+        <div class="toggle-row">
+          <label class="toggle">
+            <input type="checkbox" ${t.loop?'checked':''} onchange="setTrackParam(${id},'loop',this.checked)">
+            <span class="toggle-slider"></span>
+          </label>
+          <span class="toggle-label">${t.loop?'On':'Off'}</span>
+        </div>
+      </div>
+      `}
+
+      <!-- Ring modulator -->
+      <div class="ctrl-group">
+        <div class="ctrl-label">Ring mod
+          <label class="toggle ring-toggle" style="margin-left:.2rem">
+            <input type="checkbox" ${t.ringEnabled?'checked':''} onchange="setTrackEffect(${id},'ringEnabled',this.checked)">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <input type="range" class="ring-range" min="10" max="2000" step="1" value="${t.ringCarrier}"
+          id="ring-carrier-${id}" ${t.ringEnabled?'':'disabled'}
+          oninput="setTrackParam(${id},'ringCarrier',+this.value)">
+        <div class="ring-freqs" id="ring-freqs-${id}" style="opacity:${t.ringEnabled?1:.4}">
+          carrier: ${t.ringCarrier} Hz · sum: ${rSum} Hz · diff: ${rDiff} Hz
+        </div>
+      </div>
+
+      <!-- Reverb -->
+      <div class="ctrl-group">
+        <div class="ctrl-label">Reverb
+          <label class="toggle" style="margin-left:.2rem">
+            <input type="checkbox" ${t.reverbEnabled?'checked':''} onchange="setTrackEffect(${id},'reverbEnabled',this.checked)">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <input type="range" min="0" max="1" step="0.01" value="${t.reverbAmount}"
+          id="reverb-slider-${id}" ${t.reverbEnabled?'':'disabled'}
+          oninput="setTrackParam(${id},'reverbAmount',+this.value)">
+      </div>
+
+      <!-- LFO -->
+      <div class="ctrl-group">
+        <div class="ctrl-label">LFO → filter
+          <label class="toggle" style="margin-left:.2rem">
+            <input type="checkbox" ${t.lfoEnabled?'checked':''} onchange="setTrackEffect(${id},'lfoEnabled',this.checked)">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <input type="range" min="0.05" max="8" step="0.05" value="${t.lfoRate}"
+          id="lfo-rate-${id}" ${t.lfoEnabled?'':'disabled'}
+          oninput="setTrackParam(${id},'lfoRate',+this.value)">
+        <div class="lfo-shapes" id="lfo-shapes-${id}">
+          ${['sine','triangle','sawtooth','square'].map(s =>
+            `<button class="lfo-shape-btn ${t.lfoShape===s?'active':''}" data-shape="${s}"
+              ${t.lfoEnabled?'':'disabled'} onclick="setLfoShape(${id},'${s}')">${s[0].toUpperCase()}</button>`).join('')}
+        </div>
+      </div>
+
+      <!-- Tape degradation (file mode only) -->
+      ${!t.oscMode ? `
+      <div class="ctrl-group">
+        <div class="ctrl-label">Tape
+          <label class="toggle" style="margin-left:.2rem">
+            <input type="checkbox" ${t.tapeEnabled?'checked':''} onchange="setTrackEffect(${id},'tapeEnabled',this.checked)">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <input type="range" min="0.01" max="0.3" step="0.01" value="${t.tapeRate}"
+          id="tape-rate-${id}" ${t.tapeEnabled?'':'disabled'}
+          oninput="setTrackParam(${id},'tapeRate',+this.value)">
+        <div class="tape-meter"><div class="tape-meter-fill" id="tape-meter-${id}"
+          style="width:${t.tapeDegradation*100}%"></div></div>
+        <button class="lib-action" style="margin-top:.35rem;font-size:.62rem;"
+          onclick="resetTape(${id})">Reset tape</button>
+      </div>
+      ` : ''}
+
+    </div>
+  `;
+
+  return div;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   LIBRARY
+═══════════════════════════════════════════════════════════ */
+let recordings   = [];
+let libRecStream = null;
+let libRecMR     = null;
+let libRecChunks = [];
+let libRecording = false;
+
+async function loadLibrary() {
+  const sb = window._supabase;
+  if (!sb) return;
+  const { data, error } = await sb.from('recordings').select('*').order('created_at', { ascending: false });
+  if (error) { console.error(error); return; }
+  recordings = data || [];
+  renderLibrary();
+  updateStorageBar();
+}
+
+function renderLibrary() {
+  const list = document.getElementById('libraryList');
+  if (!recordings.length) {
+    list.innerHTML = '<div class="lib-empty">No recordings yet. Upload or record to get started.</div>';
+    return;
+  }
+  list.innerHTML = recordings.map(r => `
+    <div class="lib-item" id="libitem-${r.id}">
+      <span class="lib-item-name" title="${r.title}">${r.title || 'Untitled'}</span>
+      <span class="lib-item-meta">${formatBytes(r.file_size||0)} · ${formatDur(r.duration_s)}</span>
+      <div class="lib-item-actions">
+        <button class="lib-action add-to" onclick="openAddToTrack('${r.id}')">Add to track</button>
+        <button class="lib-action" onclick="openRename('${r.id}')">Rename</button>
+        <button class="lib-action danger" onclick="deleteRecording('${r.id}')">Delete</button>
+      </div>
+    </div>`).join('');
+}
+
+function updateStorageBar() {
+  const used = recordings.reduce((s, r) => s + (r.file_size || 0), 0);
+  const pct  = Math.min(100, (used / QUOTA_BYTES) * 100);
+  document.getElementById('storageFill').style.width = pct + '%';
+  document.getElementById('storageLabel').textContent = `${formatBytes(used)} / 25 MB`;
+}
+
+document.getElementById('fileUploadInput').addEventListener('change', async function () {
+  const files = Array.from(this.files);
+  if (!files.length) return;
+  const status = document.getElementById('uploadStatus');
+  for (const file of files) {
+    const used = recordings.reduce((s, r) => s + (r.file_size || 0), 0);
+    if (used + file.size > QUOTA_BYTES) {
+      showGlobalMsg('Storage limit reached (25 MB). Delete some recordings first.', 'error'); break;
+    }
+    status.textContent = `Uploading ${file.name}…`;
+    await uploadFile(file);
+  }
+  status.textContent = '';
+  this.value = '';
+  await loadLibrary();
+});
+
+async function uploadFile(file) {
+  const sb  = window._supabase;
+  const uid = window._currentUser.id;
+  const ext  = file.name.split('.').pop();
+  const fpath = `${uid}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+
+  let duration_s = null;
+  try {
+    const ab  = await file.arrayBuffer();
+    const tmp = new (window.AudioContext || window.webkitAudioContext)();
+    const buf = await tmp.decodeAudioData(ab);
+    duration_s = parseFloat(buf.duration.toFixed(2));
+    tmp.close();
+  } catch(e) {}
+
+  const { error: upErr } = await sb.storage.from('recordings').upload(fpath, file, { contentType: file.type, upsert: false });
+  if (upErr) { showGlobalMsg('Upload failed: ' + upErr.message, 'error'); return; }
+
+  const { data: urlData } = await sb.storage.from('recordings').createSignedUrl(fpath, 3600 * 24 * 7);
+  const name = file.name.replace(/\.[^.]+$/, '');
+  await sb.from('recordings').insert({
+    user_id: uid, title: name,
+    file_url: urlData?.signedUrl || '',
+    storage_path: fpath,
+    file_size: file.size,
+    duration_s, mime_type: file.type,
+  });
+}
+
+window.toggleLibRecord = async function () {
+  if (!libRecording) {
+    try {
+      libRecStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      libRecChunks = [];
+      libRecMR = new MediaRecorder(libRecStream);
+      libRecMR.ondataavailable = e => { if (e.data.size > 0) libRecChunks.push(e.data); };
+      libRecMR.onstop = onLibRecStop;
+      libRecMR.start();
+      libRecording = true;
+      document.getElementById('libRecBtn').classList.add('active');
+      document.getElementById('libRecBtn').innerHTML = '<svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><rect width="10" height="10"/></svg> Stop';
+      document.getElementById('uploadStatus').textContent = 'Recording…';
+    } catch(e) { showGlobalMsg('Microphone access denied.', 'error'); }
+  } else {
+    libRecMR.stop();
+    libRecStream.getTracks().forEach(t => t.stop());
+    libRecording = false;
+    document.getElementById('libRecBtn').classList.remove('active');
+    document.getElementById('libRecBtn').innerHTML = '<svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><circle cx="5" cy="5" r="5"/></svg> Record';
+    document.getElementById('uploadStatus').textContent = 'Processing…';
+  }
+};
+
+async function onLibRecStop() {
+  const blob = new Blob(libRecChunks, { type: 'audio/webm' });
+  const name = 'Recording ' + new Date().toLocaleTimeString();
+  const file = new File([blob], name + '.webm', { type: 'audio/webm' });
+  await uploadFile(file);
+  document.getElementById('uploadStatus').textContent = '';
+  await loadLibrary();
+}
+
+async function getSignedUrl(rec) {
+  const sb = window._supabase;
+  const { data } = await sb.storage.from('recordings').createSignedUrl(rec.storage_path, 3600);
+  return data?.signedUrl || rec.file_url;
+}
+
+async function loadRecordingBuffer(rec) {
+  if (!AC) initAudio();
+  const url = await getSignedUrl(rec);
+  const res = await fetch(url);
+  const ab  = await res.arrayBuffer();
+  return await AC.decodeAudioData(ab);
+}
+
+/* ── Open load modal for a specific track ── */
+window.openLoadForTrack = function(trackId) {
+  window._targetTrackId = trackId;
+  const list = document.getElementById('trackSelectList');
+  document.getElementById('addToTrackTitle').textContent = `Load file into Track ${trackId + 1}`;
+  list.innerHTML = recordings.length
+    ? recordings.map(r => `
+        <button class="sbtn" style="width:100%;text-align:left;padding:.5rem .85rem;"
+          onclick="loadRecordingToTrackById('${r.id}',${trackId})">
+          ${r.title || 'Untitled'} · ${formatDur(r.duration_s)}
+        </button>`).join('')
+    : '<p style="font-size:.8rem;color:var(--muted)">No recordings yet. Upload one first.</p>';
+  openModal('addToTrackModal');
+};
+
+/* ── Open from library ── */
+window.openAddToTrack = function(recId) {
+  window._pendingRecId = recId;
+  document.getElementById('addToTrackTitle').textContent = 'Add to track';
+  const list = document.getElementById('trackSelectList');
+  list.innerHTML = tracks.map(t => `
+    <button class="sbtn" style="width:100%;text-align:left;padding:.5rem .85rem;"
+      onclick="loadRecordingToTrack(${t.id})">
+      Track ${t.id+1} — ${t.fileName || 'empty'}
+    </button>`).join('');
+  openModal('addToTrackModal');
+};
+
+window.loadRecordingToTrack = async function(trackId) {
+  closeModal('addToTrackModal');
+  await loadRecordingToTrackById(window._pendingRecId, trackId);
+};
+
+window.loadRecordingToTrackById = async function(recId, trackId) {
+  closeModal('addToTrackModal');
+  const rec = recordings.find(r => r.id === recId);
+  if (!rec) return;
+  const t = tracks[trackId];
+  showGlobalMsg('Loading audio…', 'success');
+  try {
+    const buf = await loadRecordingBuffer(rec);
+    t.buffer      = buf;
+    t.fullBuffer  = buf;
+    t.fileName    = rec.title || 'Untitled';
+    t.recordingId = rec.id;
+    t.oscMode     = false;
+    t.selStart = 0; t.selEnd = 1;
+    renderTracks();
+    updatePlayBtn();
+    showGlobalMsg('', '');
+  } catch(e) { showGlobalMsg('Failed to load audio: ' + e.message, 'error'); }
+};
+
+window.deleteRecording = async function(recId) {
+  const rec = recordings.find(r => r.id === recId);
+  if (!rec) return;
+  if (!confirm(`Delete "${rec.title || 'Untitled'}"?`)) return;
+  const sb = window._supabase;
+  if (rec.storage_path) await sb.storage.from('recordings').remove([rec.storage_path]);
+  await sb.from('recordings').delete().eq('id', recId);
+  tracks.forEach(t => {
+    if (t.recordingId === recId) {
+      teardownTrackGraph(t);
+      t.buffer = null; t.fullBuffer = null; t.fileName = null; t.recordingId = null;
+    }
+  });
+  await loadLibrary();
+  renderTracks();
+  updatePlayBtn();
+};
+
+let _renameId = null;
+window.openRename = function(recId) {
+  _renameId = recId;
+  const rec = recordings.find(r => r.id === recId);
+  document.getElementById('renameInput').value = rec?.title || '';
+  document.getElementById('renameMsg').className = 'msg';
+  openModal('renameModal');
+};
+window.applyRename = async function() {
+  const name = document.getElementById('renameInput').value.trim();
+  if (!name) {
+    document.getElementById('renameMsg').textContent = 'Please enter a name.';
+    document.getElementById('renameMsg').className = 'msg error show'; return;
+  }
+  const { error } = await window._supabase.from('recordings')
+    .update({ title: name, updated_at: new Date().toISOString() }).eq('id', _renameId);
+  if (error) {
+    document.getElementById('renameMsg').textContent = error.message;
+    document.getElementById('renameMsg').className = 'msg error show'; return;
+  }
+  closeModal('renameModal');
+  await loadLibrary();
+  tracks.forEach(t => {
+    if (t.recordingId === _renameId) { t.fileName = name; }
+  });
+  renderTracks();
+};
+
+/* ═══════════════════════════════════════════════════════════
+   SESSIONS
+═══════════════════════════════════════════════════════════ */
+let sessions = [];
+
+async function loadSessions() {
+  const sb = window._supabase;
+  const { data } = await sb.from('mixer_sessions').select('*').order('updated_at', { ascending: false });
+  sessions = data || [];
+  renderSessionDropdown();
+}
+
+function renderSessionDropdown() {
+  const sel = document.getElementById('sessionSelect');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— New session —</option>' +
+    sessions.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+  if (cur && sessions.find(s => s.id === cur)) sel.value = cur;
+}
+
+function getTrackState() {
+  return tracks.map(t => ({
+    volume: t.volume, pan: t.pan, speed: t.speed, loop: t.loop,
+    oscMode: t.oscMode, oscType: t.oscType, oscFreq: t.oscFreq,
+    reverbEnabled: t.reverbEnabled, reverbAmount: t.reverbAmount,
+    lfoEnabled: t.lfoEnabled, lfoRate: t.lfoRate, lfoDepth: t.lfoDepth, lfoShape: t.lfoShape,
+    tapeEnabled: t.tapeEnabled, tapeRate: t.tapeRate, tapeDegradation: t.tapeDegradation,
+    ringEnabled: t.ringEnabled, ringCarrier: t.ringCarrier,
+    ratioNum: t.ratioNum, ratioDen: t.ratioDen,
+    recordingId: t.recordingId, fileName: t.fileName,
+  }));
+}
+
+window.saveSession = async function() {
+  const sel = document.getElementById('sessionSelect');
+  const id  = sel.value;
+  if (!id) { saveSessionAs(); return; }
+  const { error } = await window._supabase.from('mixer_sessions')
+    .update({ state: { tracks: getTrackState() }, updated_at: new Date().toISOString() }).eq('id', id);
+  if (error) { showGlobalMsg(error.message, 'error'); return; }
+  showGlobalMsg('Session saved.', 'success');
+  await loadSessions();
+};
+
+window.saveSessionAs = async function() {
+  const name = prompt('Session name:', `Session ${sessions.length+1}`);
+  if (!name) return;
+  const uid = window._currentUser.id;
+  const { data, error } = await window._supabase.from('mixer_sessions')
+    .insert({ user_id: uid, name, state: { tracks: getTrackState() } }).select().single();
+  if (error) { showGlobalMsg(error.message, 'error'); return; }
+  showGlobalMsg('Session saved as "' + name + '".', 'success');
+  await loadSessions();
+  document.getElementById('sessionSelect').value = data.id;
+};
+
+window.deleteSession = async function() {
+  const id = document.getElementById('sessionSelect').value;
+  if (!id) return;
+  const s = sessions.find(s => s.id === id);
+  if (!confirm(`Delete session "${s?.name}"?`)) return;
+  await window._supabase.from('mixer_sessions').delete().eq('id', id);
+  await loadSessions();
+};
+
+document.getElementById('sessionSelect').addEventListener('change', async function() {
+  const id = this.value;
+  if (!id) return;
+  const session = sessions.find(s => s.id === id);
+  if (!session?.state?.tracks) return;
+  session.state.tracks.forEach((saved, i) => {
+    Object.assign(tracks[i], saved);
+    tracks[i].buffer = null;
+  });
+  renderTracks();
+  renderRatioGrid();
+  for (const t of tracks) {
+    if (t.recordingId && !t.oscMode) {
+      const rec = recordings.find(r => r.id === t.recordingId);
+      if (rec) {
+        try { t.buffer = await loadRecordingBuffer(rec); drawWaveform(t); } catch(e){}
+      }
+    }
+  }
+  updatePlayBtn();
+});
+
+/* ═══════════════════════════════════════════════════════════
+   MODAL HELPERS
+═══════════════════════════════════════════════════════════ */
+window.openModal  = id => document.getElementById(id).classList.add('open');
+window.closeModal = id => document.getElementById(id).classList.remove('open');
+document.querySelectorAll('.modal-overlay').forEach(m =>
+  m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); })
+);
+
+/* ═══════════════════════════════════════════════════════════
+   UTILITIES
+═══════════════════════════════════════════════════════════ */
+function formatBytes(b) {
+  if (!b) return '0 KB';
+  return b < 1024*1024 ? (b/1024).toFixed(0)+' KB' : (b/(1024*1024)).toFixed(1)+' MB';
+}
+function formatDur(s) {
+  if (!s) return '—';
+  const m = Math.floor(s/60), sec = (s%60).toFixed(1);
+  return m > 0 ? `${m}:${sec.padStart(4,'0')}` : `${sec}s`;
+}
+function showGlobalMsg(text, type) {
+  const el = document.getElementById('globalMsg');
+  if (!text) { el.className = 'msg'; return; }
+  el.textContent = text;
+  el.className = `msg ${type} show`;
+}
+
+/* speedToPitch needs to be globally available for inline handlers */
+window.speedToPitch = speedToPitch;
+
+/* ═══════════════════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════════════════ */
+function onAuthReady(cb) {
+  if (window._currentUser) { cb(); return; }
+  window.addEventListener('authReady', cb, { once: true });
+}
+
+onAuthReady(async () => {
+  renderTracks();
+  renderRatioGrid();
+  await loadLibrary();
+  await loadSessions();
+});
+
+</script>
+</body>
+</html>
