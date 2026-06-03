@@ -1,0 +1,1326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spatial Awareness</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/png" href="/images/favicon.png">
+  <link rel="apple-touch-icon" href="/images/favicon.png">
+  <link rel="manifest" href="/site.webmanifest">
+  <script src="/dashboard/auth-guard.js" type="module"></script>
+  <script type="module">
+  import { applyGatingOnReady } from '/assets/js/gating.js';
+  applyGatingOnReady({ targetSelector: '.lab-section', moduleName: 'spatial-game' });
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Space+Grotesk:wght@500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --font-body: 'Inter', sans-serif;
+      --font-heading: 'Space Grotesk', sans-serif;
+      --bg: #ffffff; --surface: #f9f9f7; --border: #e5e5e0;
+      --text: #1a1a1a; --muted: #6b6b6b;
+      --accent: #2a5c45; --accent-light: #edf4f0; --accent-hover: #1e4433;
+    }
+    html { font-size: 16px; }
+    body { font-family: var(--font-body); color: var(--text); background: var(--bg); line-height: 1.6; min-height: 100vh; display: flex; flex-direction: column; }
+    a { color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+    a:hover { color: var(--accent); }
+
+    .sil-header { border-bottom: 1px solid var(--border); padding: 0 1.5rem; height: 56px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; left: 0; right: 0; background: var(--bg); z-index: 100; gap: 1rem; width: 100%; }
+    .sil-header__wordmark { font-family: var(--font-heading); font-size: 1rem; font-weight: 600; letter-spacing: -0.01em; white-space: nowrap; flex-shrink: 0; text-decoration: none; color: var(--text); }
+    .sil-header__wordmark:hover { color: var(--accent); }
+    .sil-header__nav { display: flex; gap: 0.25rem; align-items: center; }
+    .sil-header__nav a { font-family: var(--font-body); font-size: 0.8rem; font-weight: 500; text-decoration: none; color: var(--muted); transition: color 0.15s; white-space: nowrap; padding: 0.3rem 0.65rem; }
+    .sil-header__nav a:hover { color: var(--text); }
+    .sil-header__nav a.sil-active { color: var(--accent); font-weight: 600; }
+    .sil-header__signout { font-family: var(--font-body); font-size: 0.8rem; font-weight: 500; color: var(--muted); background: none; border: 1px solid var(--border); cursor: pointer; padding: 0.3rem 0.75rem; transition: color 0.15s, border-color 0.15s; white-space: nowrap; line-height: 1.6; }
+    .sil-header__signout:hover { color: var(--text); border-color: var(--text); }
+    .sil-header__signout:disabled { opacity: 0.5; cursor: not-allowed; }
+    .sil-header__toggle { display: none; flex-direction: column; gap: 4px; background: none; border: none; cursor: pointer; padding: 4px; flex-shrink: 0; }
+    .sil-header__toggle span { display: block; width: 20px; height: 2px; background: var(--text); }
+    @media (max-width: 700px) {
+      .sil-header { padding: 0 1rem; }
+      .sil-header__toggle { display: flex; }
+      .sil-header__nav { display: none; position: absolute; top: 56px; left: 0; right: 0; background: var(--bg); border-bottom: 1px solid var(--border); flex-direction: column; align-items: flex-start; padding: 0.75rem 1rem; gap: 0; z-index: 99; }
+      .sil-header__nav.sil-open { display: flex; }
+      .sil-header__nav a, .sil-header__signout { font-size: 0.875rem; padding: 0.55rem 0.5rem; }
+      .sil-header__signout { border: none; }
+    }
+
+    .bc { padding: .75rem 1.5rem 0; max-width: 860px; margin: 0 auto; width: 100%; }
+    .bc ol { list-style: none; display: flex; gap: .3rem; align-items: center; font-size: .75rem; color: var(--muted); flex-wrap: wrap; }
+    .bc li + li::before { content: '/'; margin-right: .3rem; color: var(--border); }
+    .bc a { color: var(--muted); text-decoration: none; }
+    .bc a:hover { color: var(--accent); text-decoration: underline; }
+
+    main { max-width: 860px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; flex: 1; width: 100%; }
+    @media (max-width: 600px) { main { padding: 1.5rem 1rem 3rem; } }
+
+    .ph { margin-bottom: 2rem; padding-bottom: 1.75rem; border-bottom: 1px solid var(--border); }
+    .ph h2 { font-family: var(--font-heading); font-size: 2rem; font-weight: 600; letter-spacing: -.02em; line-height: 1.2; margin-bottom: .4rem; }
+    .ph p { font-size: .9rem; color: var(--muted); }
+
+    .lab-section { border: 1px solid var(--border); padding: 1.5rem; margin-bottom: 1.5rem; background: var(--surface); }
+    .lab-section > h3 { font-family: var(--font-heading); font-size: .65rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-bottom: 1.25rem; }
+
+    /* Level selector */
+    .level-selector { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: .85rem; align-items: center; }
+    .level-selector-label { font-size: .62rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); white-space: nowrap; margin-right: 2px; }
+    .level-btn {
+      font-family: var(--font-heading); font-size: .72rem; font-weight: 600;
+      width: 38px; height: 38px;
+      border: 1px solid var(--border); background: var(--bg); color: var(--muted);
+      cursor: pointer; transition: all .12s;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 1px; flex-shrink: 0; padding: 2px;
+    }
+    .level-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+    .level-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+    .level-btn.level-hard { border-color: #c0a080; }
+    .level-btn.level-hard:hover { border-color: #8b4513; color: #8b4513; background: #fdf8f0; }
+    .level-btn.level-hard.active { background: #8b4513; border-color: #8b4513; color: white; }
+    .level-btn .lvl-num { font-size: .78rem; line-height: 1; }
+    .level-btn .lvl-best { font-size: .48rem; font-weight: 500; letter-spacing: .03em; color: var(--muted); white-space: nowrap; line-height: 1; }
+    .level-btn.active .lvl-best { color: rgba(255,255,255,.7); }
+    .level-btn .lvl-best.perfect { color: var(--accent); font-weight: 600; }
+    .level-btn.active .lvl-best.perfect { color: #a8e6cf; }
+
+    .level-desc { font-size: .72rem; color: var(--muted); margin-bottom: .75rem; min-height: 1.4em; }
+    .level-desc strong { color: var(--text); font-weight: 500; }
+
+    /* Level status bar */
+    .level-status { display: flex; align-items: center; justify-content: space-between; margin-bottom: .85rem; flex-wrap: wrap; gap: .5rem; }
+    .level-status-left { display: flex; align-items: center; gap: 1rem; }
+    .level-badge { font-family: var(--font-heading); font-size: .72rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); background: var(--accent-light); border: 1px solid #c0d9c8; padding: .2rem .65rem; }
+    .trial-counter { font-family: var(--font-heading); font-size: .82rem; font-weight: 600; color: var(--text); }
+    .trial-counter span { color: var(--muted); font-weight: 400; }
+
+    /* Trial progress pips */
+    .trial-pips { display: flex; gap: 4px; margin-bottom: .85rem; }
+    .trial-pip { height: 4px; flex: 1; background: var(--border); transition: background .2s; }
+    .trial-pip.correct { background: var(--accent); }
+    .trial-pip.incorrect { background: #c0a080; }
+    .trial-pip.current { background: var(--muted); }
+
+    /* Stats */
+    .spatial-stats { display: flex; gap: 1.5rem; justify-content: center; margin: .75rem 0; padding: .5rem 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+    .stat-item { display: flex; align-items: baseline; gap: .35rem; }
+    .stat-label { font-size: .62rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+    .stat-value { font-family: var(--font-heading); font-size: .9rem; font-weight: 600; color: var(--text); }
+
+    /* Buttons */
+    .lab-btn { font-family: var(--font-heading); font-size: .78rem; font-weight: 600; background: var(--bg); color: var(--text); border: 1px solid var(--border); padding: .5rem 1.2rem; cursor: pointer; transition: all .12s; white-space: nowrap; }
+    .lab-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+    .lab-btn.primary { background: var(--accent); color: white; border-color: var(--accent); }
+    .lab-btn.primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+    .lab-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+    .control-row { display: flex; align-items: center; gap: 8px; margin-bottom: .6rem; flex-wrap: wrap; }
+
+    .feedback-msg { flex: 1; min-width: 120px; font-size: .8rem; color: var(--text); padding: .45rem 1rem; border: 1px solid var(--border); background: var(--bg); text-align: center; min-height: 38px; display: flex; align-items: center; justify-content: center; }
+    .feedback-msg.success { border-color: var(--accent); background: var(--accent-light); color: var(--accent-hover); font-weight: 500; }
+    .feedback-msg.error { border-color: #c0a080; background: #fdf8f0; color: #6b4a1a; font-weight: 500; }
+
+    /* Spatial diagram */
+    .spatial-diagram-container { border: 1px solid var(--border); padding: 1.25rem; margin: .85rem 0; display: flex; justify-content: center; align-items: center; background: var(--bg); }
+    .spatial-diagram { position: relative; width: 300px; height: 300px; border: 1px solid var(--border); border-radius: 50%; background: transparent; }
+    @media (max-width: 400px) { .spatial-diagram { width: 240px; height: 240px; } }
+
+    .sound-source { position: absolute; width: 14px; height: 14px; border-radius: 50%; transform: translate(-50%, -50%); transition: opacity .4s ease; }
+    .source-target { background: var(--text); border: 2px solid var(--text); z-index: 10; }
+    .source-distractor { background: transparent; border: 2px solid var(--border); z-index: 5; }
+    .source-clickable { cursor: pointer; }
+    .source-clickable:hover { transform: translate(-50%, -50%) scale(1.3); border-color: var(--accent); }
+    .source-selected { background: var(--accent); border-color: var(--accent); }
+    .source-revealed { background: var(--text); border-color: var(--text); box-shadow: 0 0 0 3px var(--accent-light); }
+
+    /* pulse-string: sharp ring on quarter-note beat (600ms interval).
+       Fast expand then fade — mirrors the quick attack / bow-stroke accent. */
+    @keyframes pulse-string {
+      0%   { box-shadow: 0 0 0 0px  rgba(42,92,69,0.75); }
+      12%  { box-shadow: 0 0 0 9px  rgba(42,92,69,0.0);  }
+      100% { box-shadow: 0 0 0 0px  rgba(42,92,69,0.0);  }
+    }
+    /* pulse-pad: slow swell on half-note beat (1200ms interval).
+       Gentle bloom that lingers — mirrors the long attack/release envelope. */
+    @keyframes pulse-pad {
+      0%   { box-shadow: 0 0 0 0px  rgba(26,77,107,0.5); }
+      35%  { box-shadow: 0 0 0 10px rgba(26,77,107,0.2); }
+      100% { box-shadow: 0 0 0 0px  rgba(26,77,107,0.0); }
+    }
+    /* pulse-block: sharp pop with medium tail on dotted-quarter (900ms interval).
+       Quick expand, slow fade — mirrors the percussive hit + resonant tail. */
+    @keyframes pulse-block {
+      0%   { box-shadow: 0 0 0 0px rgba(92,42,92,0.65); }
+      10%  { box-shadow: 0 0 0 8px rgba(92,42,92,0.15); }
+      100% { box-shadow: 0 0 0 0px rgba(92,42,92,0.0);  }
+    }
+    /* Duration < interval so the ring clears before the next beat fires */
+    .pulse-string { animation: pulse-string  560ms ease-out 1 forwards; }
+    .pulse-pad    { animation: pulse-pad     1080ms ease-out 1 forwards; }
+    .pulse-block  { animation: pulse-block   820ms  ease-out 1 forwards; }
+
+    .path-trace { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+    .phase-indicator { font-size: .65rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); text-align: center; margin: .5rem 0; min-height: 1.2em; }
+    .lab-hint { font-size: .72rem; color: var(--muted); margin-top: .65rem; text-align: center; line-height: 1.5; }
+
+    /* Level complete overlay */
+    .level-complete { display: none; position: fixed; inset: 0; background: rgba(255,255,255,.97); z-index: 300; align-items: center; justify-content: center; flex-direction: column; padding: 2rem; }
+    .level-complete.visible { display: flex; }
+    .level-complete-inner { max-width: 440px; width: 100%; text-align: center; }
+    .level-complete-title { font-family: var(--font-heading); font-size: 1.5rem; font-weight: 600; letter-spacing: -.02em; margin-bottom: .5rem; }
+    .level-complete-score { font-family: var(--font-heading); font-size: 3rem; font-weight: 600; color: var(--accent); line-height: 1; margin-bottom: .25rem; }
+    .level-complete-score-label { font-size: .75rem; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 1.5rem; }
+    .level-complete-stats { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; margin-bottom: 1.75rem; border: 1px solid var(--border); padding: 1rem; background: var(--surface); }
+    .lc-stat { text-align: center; }
+    .lc-stat-val { font-family: var(--font-heading); font-size: 1.1rem; font-weight: 600; color: var(--text); display: block; }
+    .lc-stat-label { font-size: .65rem; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; }
+    .level-complete-msg { font-size: .85rem; color: var(--muted); line-height: 1.65; margin-bottom: 1.5rem; font-style: italic; }
+    .lc-record { font-size: .75rem; color: var(--accent); font-weight: 500; margin-bottom: 1rem; display: none; }
+    .lc-record.visible { display: block; }
+    .level-complete-btns { display: flex; gap: .65rem; justify-content: center; flex-wrap: wrap; }
+    .lc-pip-row { display: flex; gap: 4px; justify-content: center; margin-bottom: 1.25rem; }
+    .lc-pip { width: 24px; height: 4px; background: var(--border); }
+    .lc-pip.correct { background: var(--accent); }
+    .lc-pip.incorrect { background: #c0a080; }
+
+    /* Tutorial overlay */
+    .tutorial-overlay { position: fixed; inset: 0; background: rgba(26,26,26,0.72); z-index: 500; display: flex; align-items: center; justify-content: center; padding: 1.5rem; }
+    .tutorial-overlay.hidden { display: none; }
+    .tutorial-card { background: var(--bg); border: 1px solid var(--border); max-width: 420px; width: 100%; padding: 2rem; position: relative; }
+    .tutorial-card h2 { font-family: var(--font-heading); font-size: 1.2rem; font-weight: 600; letter-spacing: -.01em; margin-bottom: .5rem; }
+    .tutorial-card p { font-size: .88rem; color: var(--muted); line-height: 1.7; margin-bottom: 1.25rem; }
+    .tutorial-diagram-wrap { display: flex; justify-content: center; margin-bottom: 1.25rem; }
+    .tutorial-diagram { position: relative; width: 200px; height: 200px; border: 1px solid var(--border); border-radius: 50%; background: var(--surface); overflow: hidden; }
+    .tutorial-dot { position: absolute; width: 14px; height: 14px; border-radius: 50%; background: var(--text); border: 2px solid var(--text); transform: translate(-50%, -50%); }
+    .tutorial-step-label { font-size: .62rem; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); font-weight: 600; margin-bottom: .4rem; }
+    .tutorial-actions { display: flex; gap: .65rem; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+    .tutorial-skip { font-size: .78rem; color: var(--muted); background: none; border: none; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; padding: .3rem 0; }
+    .tutorial-skip:hover { color: var(--text); }
+    .tutorial-dots-nav { display: flex; gap: 6px; align-items: center; }
+    .tutorial-dots-nav span { width: 6px; height: 6px; border-radius: 50%; background: var(--border); display: block; transition: background .2s; }
+    .tutorial-dots-nav span.active { background: var(--accent); }
+
+    /* How to play button */
+    .how-to-play-btn { font-family: var(--font-body); font-size: .72rem; color: var(--muted); background: none; border: none; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; padding: 0; }
+    .how-to-play-btn:hover { color: var(--accent); }
+
+    .article-text { margin-top: 2rem; }
+    .article-text h3 { font-family: var(--font-heading); font-size: 1.1rem; font-weight: 600; margin-bottom: .6rem; }
+    .article-text p { font-size: .9rem; color: var(--muted); line-height: 1.75; margin-bottom: 1rem; }
+
+    footer { border-top: 1px solid var(--border); padding: 1.25rem 1.5rem; text-align: center; font-size: .78rem; color: var(--muted); }
+    footer a { color: var(--muted); text-decoration: none; }
+    footer a:hover { color: var(--accent); }
+  </style>
+</head>
+<body>
+
+<!-- Tutorial overlay -->
+<div class="tutorial-overlay hidden" id="tutorial-overlay" role="dialog" aria-modal="true" aria-label="Tutorial">
+  <div class="tutorial-card">
+    <div id="tut-step-1">
+      <div class="tutorial-step-label">Introduction · Step 1 of 2</div>
+      <h2>Sound moving through space</h2>
+      <p>Each dot in the circle represents a sound source. When you put on headphones, the dot's position maps directly to where you'll hear the sound — left, right, in front, or behind you.</p>
+      <div class="tutorial-diagram-wrap">
+        <div class="tutorial-diagram" id="tut-diagram">
+          <div class="tutorial-dot" id="tut-dot"></div>
+        </div>
+      </div>
+      <p>Watch the dot move around the circle and notice how the sound follows it through space.</p>
+      <div class="tutorial-actions">
+        <button class="tutorial-skip" id="tut-skip">Skip tutorial</button>
+        <div class="tutorial-dots-nav"><span class="active" id="tut-nav-1"></span><span id="tut-nav-2"></span></div>
+        <button class="lab-btn primary" id="tut-next-1">Next →</button>
+      </div>
+    </div>
+    <div id="tut-step-2" style="display:none;">
+      <div class="tutorial-step-label">Introduction · Step 2 of 2</div>
+      <h2>The shell game</h2>
+      <p>You'll hear three distinct sounds — a bowed string, a soft pad, and a woodblock. The <strong>filled dot</strong> plays the bowed string. Watch it move, then track it by ear when the dots fade out.</p>
+      <p>When the movement stops, the dots reappear — all identical. <strong>Tap the one you were tracking.</strong></p>
+      <p style="font-size:.8rem; color: var(--accent); font-weight:500;">Headphones are strongly recommended for the full spatial effect.</p>
+      <div class="tutorial-actions">
+        <button class="tutorial-skip" id="tut-skip-2">Skip</button>
+        <div class="tutorial-dots-nav"><span id="tut-nav-1b"></span><span class="active" id="tut-nav-2b"></span></div>
+        <button class="lab-btn primary" id="tut-finish">Let's go →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<header class="sil-header">
+  <a class="sil-header__wordmark" href="/dashboard/">Sensory Intelligence Lab</a>
+  <button class="sil-header__toggle" id="silMenuToggle" aria-label="Toggle navigation" aria-expanded="false">
+    <span></span><span></span><span></span>
+  </button>
+  <nav class="sil-header__nav" id="silNav">
+    <a href="/dashboard/">Dashboard</a>
+    <a href="/account/">Account</a>
+    <a href="/booking/">Book a session</a>
+    <button class="sil-header__signout" id="silSignOut">Sign out</button>
+  </nav>
+</header>
+
+<nav aria-label="Breadcrumb" class="bc">
+  <ol>
+    <li><a href="/dashboard/">Dashboard</a></li>
+    <li>Spatial Awareness</li>
+  </ol>
+</nav>
+
+<main>
+  <div class="ph">
+    <h2>Spatial Awareness</h2>
+    <p>Track a moving sound source through 3D space. Trains auditory attention, scene analysis, and sound localisation.</p>
+  </div>
+
+  <div class="lab-section">
+    <h3>The auditory shell game</h3>
+
+    <div class="level-selector" id="level-selector">
+      <span class="level-selector-label">Level</span>
+    </div>
+    <div class="level-desc" id="level-desc"></div>
+
+    <!-- Level status bar -->
+    <div class="level-status">
+      <div class="level-status-left">
+        <span class="level-badge" id="level-badge">Level 1</span>
+        <span class="trial-counter">Trial <strong id="trial-num">—</strong><span> / 10</span></span>
+      </div>
+      <button class="how-to-play-btn" id="how-to-play-btn">How to play</button>
+    </div>
+
+    <!-- Trial pips -->
+    <div class="trial-pips" id="trial-pips"></div>
+
+    <div class="spatial-diagram-container">
+      <div class="spatial-diagram" id="spatial-diagram">
+        <svg class="path-trace" id="path-trace"></svg>
+      </div>
+    </div>
+
+    <div class="phase-indicator" id="phase-indicator"></div>
+
+    <div class="control-row">
+      <button class="lab-btn primary" id="btn-play"><svg width="10" height="12" viewBox="0 0 10 12" fill="currentColor"><path d="M0 0l10 6L0 12z"/></svg> Play</button>
+      <div class="feedback-msg" id="feedback-msg"></div>
+    </div>
+
+    <div class="spatial-stats">
+      <div class="stat-item"><span class="stat-label">Trials</span><span class="stat-value" id="stat-trials">0</span></div>
+      <div class="stat-item"><span class="stat-label">Correct</span><span class="stat-value" id="stat-correct">0</span></div>
+      <div class="stat-item"><span class="stat-label">Accuracy</span><span class="stat-value" id="stat-accuracy">—</span></div>
+    </div>
+
+    <p class="lab-hint">Headphones recommended · The filled dot plays the bowed string · Click where it ends up</p>
+  </div>
+
+  <!-- Level complete overlay -->
+  <div class="level-complete" id="levelComplete">
+    <div class="level-complete-inner">
+      <div class="level-complete-title" id="lc-title">Level complete</div>
+      <div class="level-complete-score" id="lc-score">7 / 10</div>
+      <div class="level-complete-score-label">correct answers</div>
+      <div class="lc-pip-row" id="lc-pips"></div>
+      <div class="level-complete-stats">
+        <div class="lc-stat"><span class="lc-stat-val" id="lc-accuracy">70%</span><span class="lc-stat-label">Accuracy</span></div>
+        <div class="lc-stat"><span class="lc-stat-val" id="lc-prev-best">—</span><span class="lc-stat-label">Previous best</span></div>
+      </div>
+      <div class="lc-record" id="lc-record">★ New personal best</div>
+      <div class="level-complete-msg" id="lc-msg"></div>
+      <div class="level-complete-btns">
+        <button class="lab-btn" onclick="retryLevel()">Try again</button>
+        <button class="lab-btn primary" id="lc-next-btn">Next level →</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="article-text">
+    <h3>How spatial hearing works</h3>
+    <p>The auditory system locates sound in space using interaural time differences (ITD) — the tiny delay between a sound reaching each ear — and interaural level differences (ILD), the difference in loudness between ears. For sounds above and below, the shape of the outer ear (the pinna) introduces frequency-dependent filtering that the brain learns to decode as elevation.</p>
+    <p>Practising active sound tracking exercises the superior colliculus and auditory cortex circuits responsible for reflexive and voluntary spatial attention. The shell game format — watching a target, then selecting its resting position from among identical-looking distractors — separates perceptual tracking from motor response, isolating the attentional component.</p>
+    <p>This exercise is adapted from research on auditory scene analysis (Bregman, 1990) and the cocktail party effect. Consistent practice improves the ability to selectively attend to a single sound source in noisy environments.</p>
+  </div>
+</main>
+
+<footer>
+  <p>Jordan Elias Music Therapy · Berlin · <a href="https://jordanelias.de/contact/" target="_blank" rel="noopener">Contact</a></p>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/resonance-audio/build/resonance-audio.min.js"></script>
+
+<script type="module">
+'use strict';
+
+// ─── SUPABASE ───────────────────────────────────────────
+let _sb = null;
+async function getSupabase() {
+  if (_sb) return _sb;
+  const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+  _sb = createClient('https://lrjuufvrgkuvfxcmybtf.supabase.co','sb_publishable_VyiIJOgsGueUOVU_ed49-Q_rS4mi7J1');
+  return _sb;
+}
+
+// ─── PERSISTENCE ────────────────────────────────────────
+async function loadBestScores() {
+  try {
+    const sb = await getSupabase();
+    const uid = window._currentUser?.id;
+    if (!sb || !uid) return;
+    const { data } = await sb.from('game_best_scores').select('level, correct, trials, accuracy').eq('user_id', uid).eq('game', 'spatial');
+    if (data) data.forEach(row => { G.bestScores[row.level] = { correct: row.correct, trials: row.trials, accuracy: row.accuracy }; });
+  } catch(e) { console.warn('Could not load scores:', e); }
+  updateLevelButtons();
+}
+
+async function saveBestScore(level, correct, trials, accuracy) {
+  try {
+    const sb = await getSupabase(); const uid = window._currentUser?.id;
+    if (!sb || !uid) return;
+    await sb.from('game_best_scores').upsert({ user_id: uid, game: 'spatial', level, correct, trials, accuracy, updated_at: new Date().toISOString() }, { onConflict: 'user_id,game,level' });
+  } catch(e) { console.warn('Could not save score:', e); }
+}
+
+async function saveSession(level, correct, trials, accuracy) {
+  try {
+    const sb = await getSupabase(); const uid = window._currentUser?.id;
+    if (!sb || !uid) return;
+    await sb.from('game_sessions').insert({ user_id: uid, game: 'spatial', level, correct, trials, accuracy, played_at: new Date().toISOString() });
+  } catch(e) { console.warn('Could not save session:', e); }
+}
+
+// ─── HEADER ─────────────────────────────────────────────
+const pathName = window.location.pathname.replace(/\/$/, '') || '/';
+document.querySelectorAll('.sil-header__nav a').forEach(a => {
+  const href = (a.getAttribute('href') || '').replace(/\/$/, '') || '/';
+  if (href === pathName) a.classList.add('sil-active');
+});
+const menuToggle = document.getElementById('silMenuToggle');
+const silNav = document.getElementById('silNav');
+menuToggle.addEventListener('click', () => { const open = silNav.classList.toggle('sil-open'); menuToggle.setAttribute('aria-expanded', open); });
+silNav.querySelectorAll('a').forEach(a => a.addEventListener('click', () => silNav.classList.remove('sil-open')));
+document.getElementById('silSignOut').addEventListener('click', async function () {
+  this.disabled = true; this.textContent = 'Signing out…';
+  try { const sb = await getSupabase(); await sb.auth.signOut(); } finally { window.location.replace('/'); }
+});
+
+// ═══ LEVELS ═════════════════════════════════════════════
+const LEVELS = [
+  { num: 1,  sources: 2, complexity: 'simple',  speed: 0.5,  minSep: 120, label: '2 sources · slow · wide spacing' },
+  { num: 2,  sources: 2, complexity: 'simple',  speed: 0.7,  minSep: 100, label: '2 sources · gentle pace · wide spacing' },
+  { num: 3,  sources: 2, complexity: 'medium',  speed: 0.9,  minSep:  70, label: '2 sources · moderate speed · medium spacing' },
+  { num: 4,  sources: 2, complexity: 'medium',  speed: 1.1,  minSep:  60, label: '2 sources · faster paths · medium spacing' },
+  { num: 5,  sources: 3, complexity: 'simple',  speed: 1.0,  minSep:  90, label: '3 sources introduced · slow paths · wide spacing' },
+  { num: 6,  sources: 3, complexity: 'medium',  speed: 1.2,  minSep:  60, label: '3 sources · medium paths · medium spacing' },
+  { num: 7,  sources: 3, complexity: 'medium',  speed: 1.4,  minSep:  35, label: '3 sources · fast paths · narrow spacing' },
+  { num: 8,  sources: 3, complexity: 'complex', speed: 1.6,  minSep:  25, label: '3 sources · complex paths · narrow spacing' },
+  { num: 9,  sources: 3, complexity: 'complex', speed: 1.8,  minSep:  15, label: '3 sources · complex paths · tight spacing' },
+  { num: 10, sources: 3, complexity: 'complex', speed: 2.2,  minSep:  10, label: '3 sources · maximum speed · can cluster' },
+];
+
+const LEVEL_MESSAGES = [
+  'A clear first step. The target sound stands out easily in open space.',
+  'Still accessible — two sources with a comfortable gap between them.',
+  'Paths are more varied now. Notice how the sound leads the eye.',
+  'Faster movement. The tracking phase demands more sustained attention.',
+  'A third sound enters — a woodblock. Three distinct voices to untangle.',
+  'Three sources at medium complexity. Your ear must choose and hold.',
+  'Fast, interweaving paths with narrower final spacing.',
+  'Complex movement and tight final positions. Elite-level tracking.',
+  'Very tight spacing. You are near the perceptual limits of localisation.',
+  'Maximum difficulty. The sources converge — only the sound can guide you.',
+];
+
+// ═══════════════════════════════════════════════════════════════════
+// SHARED BPM GRID + CONTINUOUS TONE SOURCE
+// ═══════════════════════════════════════════════════════════════════
+//
+// All sources share a BPM of 100 (quarter note = 600ms).
+// Rhythm roles:
+//   string (target)  — quarter notes (every 1 beat = 600ms)
+//                      Prominent, bowed-string timbre, loudest accent
+//   pad (distractor) — half notes (every 2 beats = 1200ms)
+//                      Softer, sustained triangle pad
+//   woodblock        — dotted-quarter + eighth triplet feel
+//                      Accent every 1.5 beats (900ms) for syncopation
+//
+// Each source runs *continuously* — oscillators never stop.
+// Volume is shaped by a repeating gain envelope scheduled on the audio
+// clock so beats are sample-accurate and never drift.
+// Between beats the gain drops to a low sustain (~0.08) rather than
+// zero, so the spatial position is always audible and trackable.
+//
+// Visual pulses are triggered by the same audio-clock scheduler,
+// converting beat time → setTimeout delay so the CSS animation fires
+// exactly when the ear hears the accent.
+
+const BPM        = 100;
+const BEAT_SEC   = 60 / BPM;          // 0.600 s  — quarter note
+const HALF_SEC   = BEAT_SEC * 2;      // 1.200 s
+const DOT_Q_SEC  = BEAT_SEC * 1.5;    // 0.900 s  — dotted quarter
+
+class ToneSource {
+  constructor(audioCtx, resonanceScene, config) {
+    this.audioCtx       = audioCtx;
+    this.resonanceScene = resonanceScene;
+    this.timbre         = config.timbre;
+    this.frequency      = config.frequency;
+    this.beatInterval   = config.beatInterval; // seconds between accents
+    this.isTarget       = config.isTarget;
+
+    this.position       = { x: 0, y: 0, z: -1 };
+    this.resonanceSource = null;
+
+    // continuous oscillator nodes (kept alive for the whole trial)
+    this._osc1      = null;
+    this._osc2      = null;
+    this._lfo       = null;
+    this._lfoGain   = null;  // vibrato depth gain (string only)
+    this._osc2Gain  = null;  // secondary oscillator gain (woodblock only)
+    this._masterGain = null;
+    this._filterNode = null;
+
+    this._stopped      = true;
+    this._nextBeatTime = 0;
+    this._schedTid     = null;
+
+    this.onBeat = null; // visual callback
+  }
+
+  // ── init: create resonance source and build the continuous audio graph ──
+  init() {
+    this.resonanceSource = this.resonanceScene.createSource();
+    this.resonanceSource.setPosition(this.position.x, this.position.y, this.position.z);
+    this._buildGraph();
+  }
+
+  _buildGraph() {
+    const ctx = this.audioCtx;
+
+    // Master gain — shaped by the beat envelope scheduler
+    this._masterGain = ctx.createGain();
+    this._masterGain.gain.value = 0.0;
+    this._masterGain.connect(this.resonanceSource.input);
+
+    if (this.timbre === 'string') {
+      // Bowed string: sawtooth + lowpass + vibrato LFO on pitch
+      this._osc1 = ctx.createOscillator();
+      this._osc1.type = 'sawtooth';
+      this._osc1.frequency.value = this.frequency;
+
+      // Vibrato
+      this._lfo = ctx.createOscillator();
+      this._lfo.type = 'sine';
+      this._lfo.frequency.value = 5.2; // Hz
+      this._lfoGain = ctx.createGain();
+      this._lfoGain.gain.value = 3.5; // cents-equivalent pitch deviation
+      this._lfo.connect(this._lfoGain);
+      this._lfoGain.connect(this._osc1.frequency);
+
+      // Tone shaping: lowpass removes harshness of raw sawtooth
+      this._filterNode = ctx.createBiquadFilter();
+      this._filterNode.type = 'lowpass';
+      this._filterNode.frequency.value = 1100;
+      this._filterNode.Q.value = 1.2;
+
+      // Second partial for warmth (one octave up, quieter)
+      this._osc2 = ctx.createOscillator();
+      this._osc2.type = 'sawtooth';
+      this._osc2.frequency.value = this.frequency * 2;
+      const osc2Gain = ctx.createGain();
+      osc2Gain.gain.value = 0.18;
+
+      this._osc1.connect(this._filterNode);
+      this._filterNode.connect(this._masterGain);
+      this._osc2.connect(osc2Gain);
+      osc2Gain.connect(this._masterGain);
+
+      this._lfo.start();
+      this._osc1.start();
+      this._osc2.start();
+
+    } else if (this.timbre === 'pad') {
+      // Sustained pad: two detuned triangle oscillators
+      this._osc1 = ctx.createOscillator();
+      this._osc1.type = 'triangle';
+      this._osc1.frequency.value = this.frequency;
+
+      this._osc2 = ctx.createOscillator();
+      this._osc2.type = 'triangle';
+      this._osc2.frequency.value = this.frequency * 1.007; // slight detune
+
+      this._filterNode = ctx.createBiquadFilter();
+      this._filterNode.type = 'lowpass';
+      this._filterNode.frequency.value = 1400;
+      this._filterNode.Q.value = 0.7;
+
+      this._osc1.connect(this._filterNode);
+      this._osc2.connect(this._filterNode);
+      this._filterNode.connect(this._masterGain);
+
+      this._osc1.start();
+      this._osc2.start();
+
+    } else if (this.timbre === 'woodblock') {
+      // Resonant woodblock: square wave + bandpass, continuous with percussive envelope
+      this._osc1 = ctx.createOscillator();
+      this._osc1.type = 'square';
+      this._osc1.frequency.value = this.frequency;
+
+      // Add a slightly detuned sine for body/resonance
+      this._osc2 = ctx.createOscillator();
+      this._osc2.type = 'sine';
+      this._osc2.frequency.value = this.frequency * 1.5;
+      this._osc2Gain = ctx.createGain();
+      this._osc2Gain.gain.value = 0.4;
+
+      this._filterNode = ctx.createBiquadFilter();
+      this._filterNode.type = 'bandpass';
+      this._filterNode.frequency.value = this.frequency * 1.4;
+      this._filterNode.Q.value = 3.5;
+
+      this._osc1.connect(this._filterNode);
+      this._filterNode.connect(this._masterGain);
+      this._osc2.connect(this._osc2Gain);
+      this._osc2Gain.connect(this._masterGain);
+
+      this._osc1.start();
+      this._osc2.start();
+    }
+  }
+
+  // ── startRhythm: begin the beat-envelope scheduler ──
+  startRhythm() {
+    this._stopped = false;
+    this._nextBeatTime = this.audioCtx.currentTime + 0.05; // tiny offset so first note isn't clipped
+    this._scheduleNext();
+  }
+
+  _scheduleNext() {
+    if (this._stopped) return;
+
+    const beatTime = this._nextBeatTime;
+    this._shapeEnvelope(beatTime);
+
+    // Visual callback: fire in JS time aligned to audio beat
+    if (this.onBeat) {
+      const msUntil = Math.max(0, (beatTime - this.audioCtx.currentTime) * 1000);
+      setTimeout(() => { if (!this._stopped && this.onBeat) this.onBeat(); }, msUntil);
+    }
+
+    this._nextBeatTime += this.beatInterval;
+
+    // Wake up 120ms before next beat to schedule it
+    const msUntilNext = (this._nextBeatTime - this.audioCtx.currentTime) * 1000 - 120;
+    this._schedTid = setTimeout(() => this._scheduleNext(), Math.max(0, msUntilNext));
+  }
+
+  // ── _shapeEnvelope: schedule gain curve for one accent at beatTime ──
+  // Each timbre has its own character:
+  //   string — strong accent, quick attack, slow decay to sustained hum
+  //   pad    — gentle swell, very slow attack/release, high sustain
+  //   woodblock — sharp percussive hit, fast decay to low resonant tail
+  _shapeEnvelope(beatTime) {
+    const g = this._masterGain.gain;
+    const now = this.audioCtx.currentTime;
+    // Clamp: never schedule into the past — use whichever is later
+    const t0 = Math.max(now, beatTime);
+    // Cancel from now so any still-running ramp is cleanly cut before we write new values
+    g.cancelScheduledValues(now);
+    // Snapshot current value so the ramp starts from wherever the gain actually is
+    g.setValueAtTime(g.value, now);
+
+    if (this.timbre === 'string') {
+      // Sustain level between beats: 0.09 (always audible)
+      // Accent peak: 0.52
+      const sustain   = 0.09;
+      const peak      = 0.52;
+      const attackSec = 0.018;
+      const decaySec  = 0.20;
+      g.setValueAtTime(sustain, t0);
+      g.linearRampToValueAtTime(peak, t0 + attackSec);
+      g.exponentialRampToValueAtTime(sustain + 0.001, t0 + attackSec + decaySec);
+      g.linearRampToValueAtTime(sustain, t0 + attackSec + decaySec + 0.01);
+
+    } else if (this.timbre === 'pad') {
+      // Sustain: 0.06 — always present but background
+      // Accent peak: 0.22 — gentle swell that fills the half-note gap
+      const sustain   = 0.06;
+      const peak      = 0.22;
+      const attackSec = 0.14;
+      const decaySec  = 0.70;
+      g.setValueAtTime(sustain, t0);
+      g.linearRampToValueAtTime(peak, t0 + attackSec);
+      g.exponentialRampToValueAtTime(sustain + 0.001, t0 + attackSec + decaySec);
+      g.linearRampToValueAtTime(sustain, t0 + attackSec + decaySec + 0.02);
+
+    } else if (this.timbre === 'woodblock') {
+      // Sustain: 0.04 — faint resonant tail keeps it spatially present
+      // Accent peak: 0.34 — sharp strike
+      const sustain   = 0.04;
+      const peak      = 0.34;
+      const attackSec = 0.005;
+      const decaySec  = 0.28;
+      g.setValueAtTime(sustain, t0);
+      g.linearRampToValueAtTime(peak, t0 + attackSec);
+      g.exponentialRampToValueAtTime(sustain + 0.001, t0 + attackSec + decaySec);
+      g.linearRampToValueAtTime(sustain, t0 + attackSec + decaySec + 0.02);
+    }
+  }
+
+  stopRhythm() {
+    this._stopped = true;
+    if (this._schedTid !== null) { clearTimeout(this._schedTid); this._schedTid = null; }
+    // Fade out quickly rather than abrupt cut
+    if (this._masterGain) {
+      const g = this._masterGain.gain;
+      const now = this.audioCtx.currentTime;
+      g.cancelScheduledValues(now);
+      g.setValueAtTime(g.value, now);
+      g.linearRampToValueAtTime(0.0, now + 0.08);
+    }
+  }
+
+  destroy() {
+    this.stopRhythm();
+    // Stop all oscillators
+    [this._osc1, this._osc2, this._lfo].forEach(n => {
+      if (n) { try { n.stop(); n.disconnect(); } catch(e) {} }
+    });
+    [this._lfoGain, this._osc2Gain, this._filterNode, this._masterGain].forEach(n => {
+      if (n) { try { n.disconnect(); } catch(e) {} }
+    });
+    if (this.resonanceSource) {
+      try { this.resonanceSource.input.disconnect(); } catch(e) {}
+      this.resonanceSource = null;
+    }
+    this._osc1 = this._osc2 = this._lfo = this._lfoGain = this._osc2Gain = null;
+    this._filterNode = this._masterGain = null;
+  }
+
+  setPosition(x, y, z) {
+    this.position = { x, y, z };
+    if (this.resonanceSource) this.resonanceSource.setPosition(x, y, z);
+  }
+}
+
+// Bell/chime for reveal tone (incorrect answer) — unchanged
+function playRevealTone(audioCtx, resonanceScene, x, y, z) {
+  const src = resonanceScene.createSource();
+  src.setPosition(x, y, z);
+  const osc = audioCtx.createOscillator(); osc.type = 'sine'; osc.frequency.value = 880;
+  const gain = audioCtx.createGain();
+  const now = audioCtx.currentTime;
+  osc.connect(gain); gain.connect(src.input);
+  gain.gain.setValueAtTime(0.0, now);
+  gain.gain.linearRampToValueAtTime(0.3, now + 0.008);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 1.8);
+  osc.start(now); osc.stop(now + 1.85);
+  const osc2 = audioCtx.createOscillator(); osc2.type = 'sine'; osc2.frequency.value = 1318;
+  const g2 = audioCtx.createGain();
+  osc2.connect(g2); g2.connect(src.input);
+  g2.gain.setValueAtTime(0.0, now);
+  g2.gain.linearRampToValueAtTime(0.12, now + 0.006);
+  g2.gain.exponentialRampToValueAtTime(0.001, now + 1.1);
+  osc2.start(now); osc2.stop(now + 1.15);
+}
+
+// ═══ PATH GENERATOR ═════════════════════════════════════
+const DIAGRAM_RADIUS = 150;
+function polarToXY(angleDeg, distance) { const rad = (angleDeg - 90) * Math.PI / 180; return { x: distance * Math.cos(rad), y: distance * Math.sin(rad) }; }
+function xyToSpatial(x, y) { return { sx: (x / DIAGRAM_RADIUS) * 2, sy: 0, sz: -(y / DIAGRAM_RADIUS) * 2 }; }
+
+function generatePath(complexity, durationSec, startAngleDeg, speedMul) {
+  const FPS = 60;
+  const frames = Math.round((durationSec / speedMul) * FPS);
+  const pts = [];
+
+  if (complexity === 'simple') {
+    const baseR = DIAGRAM_RADIUS * (0.55 + Math.random() * 0.25);
+    const wobbleAmp = DIAGRAM_RADIUS * 0.08;
+    for (let i = 0; i <= frames; i++) {
+      const t = i / frames;
+      const angle = startAngleDeg + (270 * t);
+      const r = baseR + wobbleAmp * Math.sin(t * Math.PI * 3);
+      const { x, y } = polarToXY(angle, r);
+      const { sx, sy, sz } = xyToSpatial(x, y);
+      pts.push({ x, y, sx, sy, sz });
+    }
+
+  } else if (complexity === 'medium') {
+    const A = DIAGRAM_RADIUS * 0.75;
+    const offset = startAngleDeg * Math.PI / 180;
+    const ratios = [[3, 2], [4, 3], [5, 3]];
+    const [p, q] = ratios[Math.floor(startAngleDeg / 120) % 3];
+    for (let i = 0; i <= frames; i++) {
+      const t = (i / frames) * Math.PI * 2;
+      const x = A * Math.sin(p * t + offset);
+      const y = A * Math.sin(q * t);
+      const { sx, sy, sz } = xyToSpatial(x, y);
+      pts.push({ x, y, sx, sy, sz });
+    }
+
+  } else {
+    let angle = startAngleDeg;
+    let distance = DIAGRAM_RADIUS * 0.50;
+    const raw = [];
+
+    for (let i = 0; i <= frames; i++) {
+      angle += (Math.random() - 0.5) * 38;
+      distance += (Math.random() - 0.5) * 22;
+      distance = Math.max(28, Math.min(DIAGRAM_RADIUS * 0.85, distance));
+      const { x, y } = polarToXY(angle, distance);
+      raw.push({ x, y });
+    }
+
+    const W = 2;
+    for (let i = 0; i <= frames; i++) {
+      const lo = Math.max(0, i - W); const hi = Math.min(frames, i + W);
+      let ax = 0; let ay = 0;
+      for (let j = lo; j <= hi; j++) { ax += raw[j].x; ay += raw[j].y; }
+      const n = hi - lo + 1;
+      const x = ax / n; const y = ay / n;
+      const sp = xyToSpatial(x, y);
+      pts.push({ x, y, sx: sp.sx, sy: sp.sy, sz: sp.sz });
+    }
+  }
+
+  return pts;
+}
+
+function pointAngle(x, y) { return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360; }
+function angularDist(a1, a2) { const d = Math.abs(a1 - a2) % 360; return d > 180 ? 360 - d : d; }
+function pixelDist(p1, p2) { return Math.hypot(p1.x - p2.x, p1.y - p2.y); }
+
+function buildPathsWithSeparation(levelCfg) {
+  const { sources: numSrc, complexity, speed: speedMul, minSep } = levelCfg;
+  const MAX_ATTEMPTS = 30;
+  const MIN_PIXEL_DIST = 22;
+
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    const paths = [];
+    for (let i = 0; i < numSrc; i++) { paths.push(generatePath(complexity, 5.0, Math.random() * 360, speedMul)); }
+
+    let ok = true;
+    for (let i = 0; i < numSrc && ok; i++) {
+      for (let j = i + 1; j < numSrc && ok; j++) {
+        const fi = paths[i][paths[i].length - 1];
+        const fj = paths[j][paths[j].length - 1];
+        const ai = pointAngle(fi.x, fi.y); const aj = pointAngle(fj.x, fj.y);
+        if (angularDist(ai, aj) < minSep) { ok = false; break; }
+        if (pixelDist(fi, fj) < MIN_PIXEL_DIST) { ok = false; break; }
+      }
+    }
+    if (ok) return paths;
+  }
+
+  const paths = [];
+  const angleStep = 360 / numSrc;
+  for (let i = 0; i < numSrc; i++) {
+    const p = generatePath(complexity, 5.0, Math.random() * 360, speedMul);
+    const forcedAngle = (i * angleStep) + Math.random() * (angleStep * 0.4);
+    const forcedR = DIAGRAM_RADIUS * 0.65;
+    const { x, y } = polarToXY(forcedAngle, forcedR);
+    const { sx, sy, sz } = xyToSpatial(x, y);
+    p[p.length - 1] = { x, y, sx, sy, sz };
+    paths.push(p);
+  }
+  return paths;
+}
+
+// ═══ GAME STATE ══════════════════════════════════════════
+const G = {
+  audioCtx: null, resonanceScene: null, sources: [], paths: [],
+  targetIndex: 0, phase: 'idle',
+  trialsInLevel: 0, trialResults: [],
+  trials: 0, correct: 0,
+  currentLevel: 1, animRaf: null, trackStart: null, trackDuration: 0,
+  bestScores: {},
+};
+
+// ─── AUDIO INIT ──────────────────────────────────────────
+function initAudio() {
+  if (G.audioCtx) return;
+  G.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  G.resonanceScene = new ResonanceAudio(G.audioCtx);
+  G.resonanceScene.setRoomProperties(
+    { width: 7, height: 3.5, depth: 7 },
+    { left: 'brick-bare', right: 'brick-bare', front: 'brick-bare', back: 'brick-bare', down: 'concrete-block', up: 'acoustic-ceiling-tiles' }
+  );
+  G.resonanceScene.output.connect(G.audioCtx.destination);
+}
+
+// ─── SOURCE CONFIGS ──────────────────────────────────────
+// Major triad: A3 (220 Hz) · C#4 (277.18 Hz) · E4 (329.63 Hz)
+// Rhythm roles on a 100 BPM grid:
+//   string    — quarter note  (BEAT_SEC   = 0.600 s) — most prominent
+//   pad       — half note     (HALF_SEC   = 1.200 s) — gentle, background
+//   woodblock — dotted quarter(DOT_Q_SEC  = 0.900 s) — syncopated accent
+const SOURCE_CONFIGS = [
+  { frequency: 220.00,  timbre: 'string',    beatInterval: BEAT_SEC,  isTarget: true  },
+  { frequency: 277.18,  timbre: 'pad',       beatInterval: HALF_SEC,  isTarget: false },
+  { frequency: 329.63,  timbre: 'woodblock', beatInterval: DOT_Q_SEC, isTarget: false },
+];
+
+// ─── CSS PULSE ANIMATIONS ────────────────────────────────
+// Durations match the feel of each timbre's envelope:
+//   string  — sharp ring, matches accent attack + short decay
+//   pad     — slow swell, matches long attack/release
+//   woodblock — quick pop, matches percussive strike
+// Colours match the original scheme (green, blue, purple).
+// The JS scheduler re-triggers these in sync with the audio clock.
+
+// ─── DOM HELPERS ─────────────────────────────────────────
+const diagram    = document.getElementById('spatial-diagram');
+const pathSvg    = document.getElementById('path-trace');
+const phaseEl    = document.getElementById('phase-indicator');
+const feedbackEl = document.getElementById('feedback-msg');
+const btnPlay    = document.getElementById('btn-play');
+
+function setPhase(text) { phaseEl.textContent = text; }
+function setFeedback(msg, cls) { feedbackEl.textContent = msg; feedbackEl.className = 'feedback-msg' + (cls ? ' ' + cls : ''); }
+function clearDots() { diagram.querySelectorAll('.sound-source').forEach(d => d.remove()); }
+function clearPath() { pathSvg.innerHTML = ''; }
+
+// PULSE_CLASSES indexed by source index — same as original
+const PULSE_CLASSES = ['pulse-string', 'pulse-pad', 'pulse-block'];
+
+function buildSources() {
+  G.sources.forEach(s => s.destroy());
+  G.sources = [];
+  const lvl = LEVELS[G.currentLevel - 1];
+  for (let i = 0; i < lvl.sources; i++) {
+    const src = new ToneSource(G.audioCtx, G.resonanceScene, SOURCE_CONFIGS[i]);
+    src.init();
+    G.sources.push(src);
+  }
+  G.targetIndex = 0;
+}
+
+function drawDots(showTarget, withPulse) {
+  clearDots();
+  G.sources.forEach((src, i) => {
+    const dot = document.createElement('div'); dot.className = 'sound-source'; dot.dataset.idx = i;
+    if (showTarget && i === G.targetIndex) dot.classList.add('source-target');
+    else dot.classList.add('source-distractor');
+    diagram.appendChild(dot);
+
+    if (withPulse) {
+      const pulseClass = PULSE_CLASSES[i];
+      src.onBeat = () => {
+        const d = diagram.querySelector(`.sound-source[data-idx="${i}"]`);
+        if (!d) return;
+        d.classList.remove(pulseClass);
+        void d.offsetWidth;
+        d.classList.add(pulseClass);
+      };
+      src.onBeat();
+    }
+  });
+}
+
+function removePulseClasses() {
+  G.sources.forEach(src => { src.onBeat = null; });
+  diagram.querySelectorAll('.sound-source').forEach(dot => {
+    PULSE_CLASSES.forEach(c => dot.classList.remove(c));
+  });
+}
+
+function placeDots() {
+  const r = diagram.offsetWidth / 2; const scale = r / DIAGRAM_RADIUS;
+  G.sources.forEach((src, i) => {
+    const dot = diagram.querySelector(`.sound-source[data-idx="${i}"]`); if (!dot) return;
+    const frame = currentFrame(i); const pos = G.paths[i][frame];
+    dot.style.left = (r + pos.x * scale) + 'px'; dot.style.top = (r + pos.y * scale) + 'px';
+    src.setPosition(pos.sx, pos.sy, pos.sz);
+  });
+}
+
+function currentFrame(sourceIndex) {
+  if (G.trackStart === null) return 0;
+  const elapsed = performance.now() - G.trackStart;
+  const total = G.paths[sourceIndex].length - 1;
+  return Math.min(total, Math.floor((elapsed / G.trackDuration) * total));
+}
+
+function setDotsOpacity(opacity) {
+  diagram.querySelectorAll('.sound-source').forEach(d => { d.style.opacity = opacity; });
+}
+
+function drawPathTrace(sourceIndex) {
+  clearPath();
+  const pts = G.paths[sourceIndex]; if (pts.length < 2) return;
+  const r = diagram.offsetWidth / 2; const scale = r / DIAGRAM_RADIUS;
+  const d = pts.map((p, i) => { const px = r + p.x * scale; const py = r + p.y * scale; return (i === 0 ? 'M' : 'L') + px.toFixed(1) + ',' + py.toFixed(1); }).join(' ');
+  const el = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  el.setAttribute('d', d); el.setAttribute('fill', 'none'); el.setAttribute('stroke', 'var(--accent)');
+  el.setAttribute('stroke-width', '1.5'); el.setAttribute('stroke-dasharray', '5 3'); el.setAttribute('opacity', '0.45');
+  pathSvg.appendChild(el);
+  const sp = pts[0];
+  const startDot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  startDot.setAttribute('cx', r + sp.x * scale); startDot.setAttribute('cy', r + sp.y * scale);
+  startDot.setAttribute('r', '4'); startDot.setAttribute('fill', 'var(--accent)'); startDot.setAttribute('opacity', '0.5');
+  pathSvg.appendChild(startDot);
+}
+
+function updateStats() {
+  document.getElementById('stat-trials').textContent  = G.trials;
+  document.getElementById('stat-correct').textContent = G.correct;
+  const pct = G.trials > 0 ? Math.round((G.correct / G.trials) * 100) + '%' : '—';
+  document.getElementById('stat-accuracy').textContent = pct;
+}
+
+function renderPips() {
+  const container = document.getElementById('trial-pips'); container.innerHTML = '';
+  for (let i = 0; i < 10; i++) {
+    const pip = document.createElement('div'); pip.className = 'trial-pip';
+    if (i < G.trialResults.length) pip.classList.add(G.trialResults[i].correct ? 'correct' : 'incorrect');
+    else if (i === G.trialsInLevel && G.trialsInLevel < 10) pip.classList.add('current');
+    container.appendChild(pip);
+  }
+}
+
+function updateLevelButtons() {
+  document.querySelectorAll('.level-btn').forEach(btn => {
+    const num = parseInt(btn.dataset.level); const best = G.bestScores[num];
+    let sub = btn.querySelector('.lvl-best');
+    if (!sub) { sub = document.createElement('span'); sub.className = 'lvl-best'; btn.appendChild(sub); }
+    if (best) { const isPerfect = best.accuracy === 100; sub.textContent = isPerfect ? '100% ★' : best.accuracy + '%'; sub.classList.toggle('perfect', isPerfect); }
+    else { sub.textContent = '—'; sub.classList.remove('perfect'); }
+  });
+}
+
+// ─── TRIAL FLOW ──────────────────────────────────────────
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function fadeOpacity(fromVal, toVal, ms) {
+  return new Promise(resolve => {
+    const start = performance.now();
+    function step(now) {
+      const t = Math.min((now - start) / ms, 1);
+      const v = fromVal + (toVal - fromVal) * t;
+      diagram.querySelectorAll('.sound-source').forEach(d => { d.style.opacity = v; });
+      if (t < 1) requestAnimationFrame(step); else resolve();
+    }
+    requestAnimationFrame(step);
+  });
+}
+
+async function runTrial() {
+  if (G.phase !== 'idle') return;
+
+  btnPlay.disabled = true;
+  setFeedback('');
+
+  const lvl = LEVELS[G.currentLevel - 1];
+  G.paths = buildPathsWithSeparation(lvl);
+  G.trackDuration = (5.0 / lvl.speed) * 1000;
+  G.trackStart = null;
+
+  document.getElementById('trial-num').textContent = G.trialsInLevel + 1;
+  renderPips();
+
+  // ── PHASE 1: IDENTITY ────────────────────────────────
+  G.phase = 'identity';
+  setPhase('listen — the filled dot plays the bowed string');
+  // Draw dots with pulse only for the target initially; distractors get plain dots
+  drawDots(true, false);
+  setDotsOpacity(1);
+  placeDots();
+
+  // Register and fire onBeat for target only
+  const targetPulseClass = PULSE_CLASSES[G.targetIndex];
+  G.sources[G.targetIndex].onBeat = () => {
+    const d = diagram.querySelector(`.sound-source[data-idx="${G.targetIndex}"]`);
+    if (!d) return;
+    d.classList.remove(targetPulseClass);
+    void d.offsetWidth;
+    d.classList.add(targetPulseClass);
+  };
+  G.sources[G.targetIndex].startRhythm();
+  G.sources[G.targetIndex].onBeat(); // fire immediately so first beat is visible
+  await sleep(1500);
+
+  // Now start distractors and register their pulses in sync with their audio
+  G.sources.forEach((src, i) => {
+    if (i === G.targetIndex) return;
+    const pc = PULSE_CLASSES[i];
+    src.onBeat = () => {
+      const d = diagram.querySelector(`.sound-source[data-idx="${i}"]`);
+      if (!d) return;
+      d.classList.remove(pc);
+      void d.offsetWidth;
+      d.classList.add(pc);
+    };
+    src.startRhythm();
+    src.onBeat(); // fire immediately so first beat is visible
+  });
+  await sleep(1500);
+
+  // ── PHASE 2: HANDOFF ─────────────────────────────────
+  G.phase = 'handoff';
+  setPhase('track the bowed string as it moves');
+  G.trackStart = performance.now();
+  let animRunning = true;
+  function animate() { if (!animRunning) return; placeDots(); G.animRaf = requestAnimationFrame(animate); }
+  animate();
+  removePulseClasses();
+  await fadeOpacity(1, 0, 1000);
+
+  // ── PHASE 3: TRACKING ────────────────────────────────
+  G.phase = 'tracking';
+  setPhase('tracking…');
+  await sleep(Math.max(0, G.trackDuration - 1000));
+
+  // ── PHASE 4: REVEAL ──────────────────────────────────
+  G.phase = 'reveal';
+  setPhase('where did the bowed string end up?');
+  animRunning = false;
+  if (G.animRaf) cancelAnimationFrame(G.animRaf);
+  G.sources.forEach(s => s.stopRhythm());
+
+  drawDots(false, false);
+  const r = diagram.offsetWidth / 2; const scale = r / DIAGRAM_RADIUS;
+  G.sources.forEach((src, i) => {
+    const dot = diagram.querySelector(`.sound-source[data-idx="${i}"]`);
+    const final = G.paths[i][G.paths[i].length - 1];
+    if (dot) { dot.style.left = (r + final.x * scale) + 'px'; dot.style.top = (r + final.y * scale) + 'px'; dot.style.opacity = 1; }
+  });
+
+  diagram.querySelectorAll('.sound-source').forEach(dot => {
+    dot.classList.add('source-clickable');
+    dot.addEventListener('click', () => handleGuess(parseInt(dot.dataset.idx)), { once: true });
+  });
+
+  G.phase = 'guess';
+}
+
+// ─── GUESS ───────────────────────────────────────────────
+async function handleGuess(selectedIndex) {
+  if (G.phase !== 'guess') return;
+  G.phase = 'result';
+
+  diagram.querySelectorAll('.sound-source').forEach(d => { d.classList.remove('source-clickable'); d.style.cursor = 'default'; });
+
+  const isCorrect = selectedIndex === G.targetIndex;
+  G.trials++; G.trialsInLevel++;
+  if (isCorrect) G.correct++;
+  G.trialResults.push({ correct: isCorrect });
+  updateStats(); renderPips();
+
+  const selectedDot = diagram.querySelector(`.sound-source[data-idx="${selectedIndex}"]`);
+  if (selectedDot) selectedDot.classList.add('source-selected');
+
+  if (isCorrect) {
+    setFeedback('Correct', 'success');
+    setPhase('');
+    if (G.trialsInLevel >= 10) {
+      await sleep(1000);
+      showLevelComplete();
+    } else {
+      btnPlay.disabled = false;
+      await sleep(1800);
+      resetTrial();
+    }
+  } else {
+    setFeedback('Incorrect — target revealed', 'error');
+    const targetDot = diagram.querySelector(`.sound-source[data-idx="${G.targetIndex}"]`);
+    if (targetDot) targetDot.classList.add('source-revealed');
+    drawPathTrace(G.targetIndex);
+    setPhase('');
+
+    const finalPos = G.paths[G.targetIndex][G.paths[G.targetIndex].length - 1];
+    if (G.audioCtx && G.resonanceScene) {
+      if (G.audioCtx.state === 'suspended') G.audioCtx.resume();
+      playRevealTone(G.audioCtx, G.resonanceScene, finalPos.sx, finalPos.sy, finalPos.sz);
+    }
+
+    if (G.trialsInLevel >= 10) {
+      await sleep(1200);
+      showLevelComplete();
+    } else {
+      btnPlay.disabled = false;
+      await sleep(3000);
+      resetTrial();
+    }
+  }
+}
+
+// ─── LEVEL COMPLETE ──────────────────────────────────────
+async function showLevelComplete() {
+  const results = G.trialResults;
+  const correct = results.filter(r => r.correct).length;
+  const accuracy = Math.round((correct / 10) * 100);
+
+  const prev = G.bestScores[G.currentLevel];
+  const isNewBest = !prev || correct > (prev.correct || 0) || (correct === (prev.correct || 0) && accuracy > (prev.accuracy || 0));
+  if (isNewBest) {
+    G.bestScores[G.currentLevel] = { correct, trials: 10, accuracy };
+    saveBestScore(G.currentLevel, correct, 10, accuracy);
+    updateLevelButtons();
+  }
+
+  saveSession(G.currentLevel, correct, 10, accuracy);
+
+  document.getElementById('lc-title').textContent = correct === 10 ? '★ Perfect score' : correct >= 7 ? 'Level complete' : 'Level finished';
+  document.getElementById('lc-score').textContent = `${correct} / 10`;
+  document.getElementById('lc-accuracy').textContent = accuracy + '%';
+  document.getElementById('lc-prev-best').textContent = prev ? prev.accuracy + '%' : '—';
+
+  const recordEl = document.getElementById('lc-record');
+  recordEl.classList.toggle('visible', isNewBest && !!prev);
+
+  const pipRow = document.getElementById('lc-pips');
+  pipRow.innerHTML = results.map(r => `<div class="lc-pip ${r.correct ? 'correct' : 'incorrect'}"></div>`).join('');
+
+  document.getElementById('lc-msg').textContent = LEVEL_MESSAGES[G.currentLevel - 1];
+
+  const nextBtn = document.getElementById('lc-next-btn');
+  if (G.currentLevel >= 10) {
+    nextBtn.textContent = 'Try level 1 again';
+    nextBtn.onclick = () => { closeLevelComplete(); setLevel(1); };
+  } else {
+    nextBtn.textContent = `Next: Level ${G.currentLevel + 1} →`;
+    nextBtn.onclick = () => { closeLevelComplete(); setLevel(G.currentLevel + 1); };
+  }
+
+  document.getElementById('levelComplete').classList.add('visible');
+}
+
+function closeLevelComplete() { document.getElementById('levelComplete').classList.remove('visible'); }
+window.retryLevel = function() { closeLevelComplete(); setLevel(G.currentLevel); };
+
+// ─── RESET ───────────────────────────────────────────────
+function resetTrial() {
+  G.phase = 'idle';
+  if (G.animRaf) { cancelAnimationFrame(G.animRaf); G.animRaf = null; }
+  G.trackStart = null;
+  G.sources.forEach(s => s.stopRhythm());
+  clearDots(); clearPath(); setPhase(''); setFeedback('');
+  btnPlay.disabled = false;
+}
+
+// ─── LEVEL SELECTOR ──────────────────────────────────────
+const levelSelector = document.getElementById('level-selector');
+const levelDesc = document.getElementById('level-desc');
+
+function buildLevelUI() {
+  LEVELS.forEach(lvl => {
+    const btn = document.createElement('button');
+    btn.className = 'level-btn' + (lvl.num >= 8 ? ' level-hard' : '');
+    btn.dataset.level = lvl.num;
+    btn.innerHTML = `<span class="lvl-num">${lvl.num}</span><span class="lvl-best">—</span>`;
+    btn.setAttribute('aria-label', `Level ${lvl.num}`);
+    btn.addEventListener('click', () => setLevel(lvl.num));
+    levelSelector.appendChild(btn);
+  });
+}
+
+function setLevel(num) {
+  G.currentLevel = num;
+  G.trialsInLevel = 0; G.trialResults = [];
+  G.trials = 0; G.correct = 0;
+  document.querySelectorAll('.level-btn').forEach(b => { b.classList.toggle('active', parseInt(b.dataset.level) === num); });
+  const lvl = LEVELS[num - 1];
+  levelDesc.innerHTML = `<strong>Level ${num}:</strong> ${lvl.label}`;
+  document.getElementById('level-badge').textContent = `Level ${num}`;
+  document.getElementById('trial-num').textContent = '—';
+  resetTrial(); updateStats(); renderPips();
+}
+
+// ─── PLAY BUTTON ─────────────────────────────────────────
+btnPlay.addEventListener('click', async () => {
+  initAudio();
+  if (G.audioCtx.state === 'suspended') await G.audioCtx.resume();
+  if (G.trialsInLevel >= 10) { setLevel(G.currentLevel); }
+  buildSources();
+  runTrial();
+});
+
+// ─── TUTORIAL ────────────────────────────────────────────
+const tutOverlay = document.getElementById('tutorial-overlay');
+const tutDot = document.getElementById('tut-dot');
+let tutAnimRaf = null, tutAudioCtx = null, tutResonance = null, tutSource = null;
+
+function tutPointOnCircle(angleDeg, r) { const rad = (angleDeg - 90) * Math.PI / 180; return { x: 100 + r * Math.cos(rad), y: 100 + r * Math.sin(rad) }; }
+
+function startTutorialDemo() {
+  let angle = 0;
+  function animStep(ts) {
+    angle = (ts / 20) % 360;
+    const { x, y } = tutPointOnCircle(angle, 68);
+    tutDot.style.left = x + 'px'; tutDot.style.top = y + 'px';
+    if (tutSource?.resonanceSource) { tutSource.resonanceSource.setPosition((x - 100) / 50, 0, -(y - 100) / 50); }
+    tutAnimRaf = requestAnimationFrame(animStep);
+  }
+  tutAnimRaf = requestAnimationFrame(animStep);
+  startTutorialAudio();
+}
+
+function startTutorialAudio() {
+  try {
+    if (!tutAudioCtx) {
+      tutAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      tutResonance = new ResonanceAudio(tutAudioCtx);
+      tutResonance.setRoomProperties({ width: 7, height: 3.5, depth: 7 }, { left: 'brick-bare', right: 'brick-bare', front: 'brick-bare', back: 'brick-bare', down: 'concrete-block', up: 'acoustic-ceiling-tiles' });
+      tutResonance.output.connect(tutAudioCtx.destination);
+      tutSource = new ToneSource(tutAudioCtx, tutResonance, SOURCE_CONFIGS[0]);
+      tutSource.init();
+    }
+    if (tutAudioCtx.state === 'suspended') tutAudioCtx.resume();
+    tutSource.startRhythm();
+  } catch(e) {}
+}
+
+function stopTutorialDemo() {
+  if (tutAnimRaf) { cancelAnimationFrame(tutAnimRaf); tutAnimRaf = null; }
+  if (tutSource) { tutSource.destroy(); tutSource = null; }
+  if (tutAudioCtx) { tutAudioCtx.close().catch(() => {}); tutAudioCtx = null; tutResonance = null; }
+}
+
+function closeTutorial() {
+  stopTutorialDemo();
+  tutOverlay.classList.add('hidden');
+  try { localStorage.setItem('sil_spatial_tutorial_seen', '1'); } catch(e) {}
+}
+function openTutorial() {
+  tutOverlay.classList.remove('hidden');
+  document.getElementById('tut-step-1').style.display = 'block';
+  document.getElementById('tut-step-2').style.display = 'none';
+  setTimeout(startTutorialDemo, 200);
+}
+function showTutorialStep2() {
+  document.getElementById('tut-step-1').style.display = 'none';
+  document.getElementById('tut-step-2').style.display = 'block';
+}
+
+document.getElementById('tut-skip').addEventListener('click', closeTutorial);
+document.getElementById('tut-skip-2').addEventListener('click', closeTutorial);
+document.getElementById('tut-finish').addEventListener('click', closeTutorial);
+document.getElementById('tut-next-1').addEventListener('click', () => { showTutorialStep2(); startTutorialAudio(); });
+document.getElementById('how-to-play-btn').addEventListener('click', openTutorial);
+tutOverlay.addEventListener('click', () => { startTutorialAudio(); }, { once: true });
+
+window.addEventListener('beforeunload', stopTutorialDemo);
+
+// ─── INIT ────────────────────────────────────────────────
+buildLevelUI();
+setLevel(1);
+
+function onAuthReady(cb) { if (window._currentUser) { cb(); return; } window.addEventListener('authReady', cb, { once: true }); }
+onAuthReady(async () => { await loadBestScores(); });
+
+try {
+  if (!localStorage.getItem('sil_spatial_tutorial_seen')) {
+    tutOverlay.classList.remove('hidden');
+    setTimeout(startTutorialDemo, 200);
+  }
+} catch(e) {}
+</script>
+</body>
+</html>
